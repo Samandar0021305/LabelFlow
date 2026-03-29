@@ -1,5 +1,5 @@
 import React from 'react'
-import type { BoundingBox } from '@labelflow/core'
+import type { BoundingBox } from '@labelflow-core/engine'
 import { useAnnotationEngine } from '../hooks/useAnnotationEngine'
 import { AnnotationCtx } from './AnnotationContext'
 

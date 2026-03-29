@@ -2,7 +2,7 @@ import {
   defineComponent, ref, onMounted, onUnmounted, watch, computed, h,
   type PropType,
 } from 'vue'
-import { Canvas2DRenderer } from '@labelflow/core'
+import { Canvas2DRenderer } from '@labelflow-core/engine'
 import { useAnnotation } from '../composables/useAnnotationContext'
 
 export const AnnotationCanvas = defineComponent({

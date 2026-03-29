@@ -5,8 +5,8 @@ import {
   AnnotationCanvas,
   ToolButton,
   useAnnotation,
-} from '@labelflow/vue'
-import type { BoundingBox, AnnotationClass } from '@labelflow/vue'
+} from '@labelflow-core/vue'
+import type { BoundingBox, AnnotationClass } from '@labelflow-core/vue'
 
 const CLASSES: AnnotationClass[] = [
   { id: '1', name: 'Car', color: '#FF6B6B' },

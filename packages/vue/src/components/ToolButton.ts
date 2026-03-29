@@ -1,5 +1,5 @@
 import { defineComponent, computed, h, type PropType } from 'vue'
-import type { ToolType } from '@labelflow/core'
+import type { ToolType } from '@labelflow-core/engine'
 import { useAnnotation } from '../composables/useAnnotationContext'
 
 export const ToolButton = defineComponent({

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react'
-import { Canvas2DRenderer } from '@labelflow/core'
+import { Canvas2DRenderer } from '@labelflow-core/engine'
 import { useAnnotation } from './AnnotationContext'
 
 export interface AnnotationCanvasProps {

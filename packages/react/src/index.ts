@@ -16,4 +16,4 @@ export { useAnnotationEngine } from './hooks/useAnnotationEngine'
 export type {
   BoundingBox, ToolType,
   InteractionMode, Point, Size, Rect,
-} from '@labelflow/core'
+} from '@labelflow-core/engine'

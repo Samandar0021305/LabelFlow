@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ToolType } from '@labelflow/core'
+import type { ToolType } from '@labelflow-core/engine'
 import { useAnnotation } from './AnnotationContext'
 
 export interface ToolButtonProps {

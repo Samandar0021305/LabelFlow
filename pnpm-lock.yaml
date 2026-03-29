@@ -10,10 +10,10 @@ importers:
 
   demos/react-demo:
     dependencies:
-      '@labelflow/core':
+      '@labelflow-core/engine':
         specifier: workspace:*
         version: link:../../packages/core
-      '@labelflow/react':
+      '@labelflow-core/react':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -41,10 +41,10 @@ importers:
 
   demos/vue-demo:
     dependencies:
-      '@labelflow/core':
+      '@labelflow-core/engine':
         specifier: workspace:*
         version: link:../../packages/core
-      '@labelflow/vue':
+      '@labelflow-core/vue':
         specifier: workspace:*
         version: link:../../packages/vue
       vue:
@@ -72,7 +72,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@labelflow/core':
+      '@labelflow-core/engine':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -97,7 +97,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@labelflow/core':
+      '@labelflow-core/engine':
         specifier: workspace:*
         version: link:../core
     devDependencies:

@@ -1,5 +1,5 @@
 import { inject, provide, type InjectionKey } from 'vue'
-import type { AnnotationEngine, ToolType } from '@labelflow/core'
+import type { AnnotationEngine, ToolType } from '@labelflow-core/engine'
 
 export interface AnnotationContextValue {
   engine: AnnotationEngine

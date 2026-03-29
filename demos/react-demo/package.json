@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@labelflow/core": "workspace:*",
-    "@labelflow/react": "workspace:*",
+    "@labelflow-core/engine": "workspace:*",
+    "@labelflow-core/react": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

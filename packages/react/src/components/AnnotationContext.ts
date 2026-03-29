@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { AnnotationEngine, ToolType } from '@labelflow/core'
+import type { AnnotationEngine, ToolType } from '@labelflow-core/engine'
 
 export interface AnnotationContextValue {
   engine: AnnotationEngine

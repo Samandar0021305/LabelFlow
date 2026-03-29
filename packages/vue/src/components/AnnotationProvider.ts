@@ -1,5 +1,5 @@
 import { defineComponent, type PropType, toRef } from 'vue'
-import type { BoundingBox } from '@labelflow/core'
+import type { BoundingBox } from '@labelflow-core/engine'
 import { useAnnotationEngine } from '../composables/useAnnotationEngine'
 import { provideAnnotation } from '../composables/useAnnotationContext'
 

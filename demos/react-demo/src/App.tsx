@@ -4,8 +4,8 @@ import {
   AnnotationCanvas,
   ToolButton,
   useAnnotation,
-} from '@labelflow/react'
-import type { BoundingBox } from '@labelflow/react'
+} from '@labelflow-core/react'
+import type { BoundingBox } from '@labelflow-core/react'
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F', '#BB8FCE']
 

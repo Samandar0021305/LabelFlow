@@ -1,19 +1,19 @@
-# @labelflow/core
+# @labelflow-core/engine
 
-Framework-agnostic image annotation engine. Draw bounding boxes on images with zoom, pan, resize, and drag support. Zero dependencies. ~23KB.
+Framework-agnostic image annotation engine. The core that powers [@labelflow-core/react](https://www.npmjs.com/package/@labelflow-core/react) and [@labelflow-core/vue](https://www.npmjs.com/package/@labelflow-core/vue). Zero dependencies. ~23KB.
 
-This is the core package — use it directly with vanilla JavaScript, or pair it with [`@labelflow/react`](https://www.npmjs.com/package/@labelflow/react) or [`@labelflow/vue`](https://www.npmjs.com/package/@labelflow/vue).
+> **Most users should install `@labelflow-core/react` or `@labelflow-core/vue` instead.** This package is for vanilla JavaScript usage or building custom framework adapters.
 
 ## Install
 
 ```bash
-npm install @labelflow/core
+npm install @labelflow-core/engine
 ```
 
 ## Usage
 
 ```js
-import { AnnotationEngine, Canvas2DRenderer } from '@labelflow/core'
+import { AnnotationEngine, Canvas2DRenderer } from '@labelflow-core/engine'
 
 const canvas = document.getElementById('canvas')
 const engine = new AnnotationEngine()
@@ -30,23 +30,38 @@ img.onload = () => {
 }
 img.src = '/photo.jpg'
 
-// Pointer events
+// Wire up events
 canvas.addEventListener('pointerdown', (e) => {
   const r = canvas.getBoundingClientRect()
   engine.onPointerDown({ x: e.clientX - r.left, y: e.clientY - r.top }, e.button)
   renderer.render(engine.renderState)
 })
 
-// Import annotations
+canvas.addEventListener('pointermove', (e) => {
+  const r = canvas.getBoundingClientRect()
+  engine.onPointerMove({ x: e.clientX - r.left, y: e.clientY - r.top })
+  renderer.render(engine.renderState)
+})
+
+canvas.addEventListener('pointerup', (e) => {
+  const r = canvas.getBoundingClientRect()
+  engine.onPointerUp({ x: e.clientX - r.left, y: e.clientY - r.top })
+  renderer.render(engine.renderState)
+})
+
+// Listen for changes
+engine.on('annotations:change', (list) => {
+  console.log('Annotations:', list)
+})
+
+// Import/export
 engine.setAnnotations([
   { id: '1', x: 100, y: 100, width: 200, height: 150, rotation: 0, color: '#FF6B6B' }
 ])
-
-// Export annotations
 console.log(engine.annotations)
 ```
 
-See the [full documentation](https://github.com/user/labelflow#readme) for complete API reference.
+See [@labelflow-core/react](https://www.npmjs.com/package/@labelflow-core/react) or [@labelflow-core/vue](https://www.npmjs.com/package/@labelflow-core/vue) for framework-specific usage.
 
 ## License
 

@@ -1,6 +1,6 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue'
-import { AnnotationEngine } from '@labelflow/core'
-import type { BoundingBox, ToolType, InteractionMode } from '@labelflow/core'
+import { AnnotationEngine } from '@labelflow-core/engine'
+import type { BoundingBox, ToolType, InteractionMode } from '@labelflow-core/engine'
 
 export interface UseAnnotationEngineOptions {
   annotations?: Ref<BoundingBox[]>

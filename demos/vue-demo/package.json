@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@labelflow/core": "workspace:*",
-    "@labelflow/vue": "workspace:*",
+    "@labelflow-core/engine": "workspace:*",
+    "@labelflow-core/vue": "workspace:*",
     "vue": "^3.4.0"
   },
   "devDependencies": {

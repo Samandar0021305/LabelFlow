@@ -4,9 +4,9 @@
   "description": "Framework-agnostic image annotation library for React, Vue, and Angular",
   "scripts": {
     "build": "pnpm -r build",
-    "build:core": "pnpm --filter @labelflow/core build",
-    "build:react": "pnpm --filter @labelflow/react build",
-    "build:vue": "pnpm --filter @labelflow/vue build",
+    "build:core": "pnpm --filter @labelflow-core/engine build",
+    "build:react": "pnpm --filter @labelflow-core/react build",
+    "build:vue": "pnpm --filter @labelflow-core/vue build",
     "dev:react-demo": "pnpm --filter react-demo dev",
     "dev:vue-demo": "pnpm --filter vue-demo dev",
     "typecheck": "pnpm -r typecheck",

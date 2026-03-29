@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
-import { AnnotationEngine } from '@labelflow/core'
-import type { BoundingBox, ToolType } from '@labelflow/core'
+import { AnnotationEngine } from '@labelflow-core/engine'
+import type { BoundingBox, ToolType } from '@labelflow-core/engine'
 
 export function useAnnotationEngine(options?: {
   annotations?: BoundingBox[]

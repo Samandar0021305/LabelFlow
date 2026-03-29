@@ -1,6 +1,6 @@
 {
-  "name": "@labelflow/core",
-  "version": "0.1.0",
+  "name": "@labelflow-core/engine",
+  "version": "0.1.1",
   "description": "Framework-agnostic image annotation engine",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -13,7 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
