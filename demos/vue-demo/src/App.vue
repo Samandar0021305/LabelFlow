@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import {
   AnnotationProvider,
   AnnotationCanvas,
-  ToolButton,
   useAnnotation,
 } from '@labelflow-core/vue'
 import type { BoundingBox, AnnotationClass } from '@labelflow-core/vue'
@@ -58,8 +57,8 @@ const ToolbarPanel = defineComponent({
     <div class="toolbar">
       <div class="tool-group">
         <span class="group-label">Tools</span>
-        <ToolButton :tool="null" class="btn">↖ Select</ToolButton>
-        <ToolButton tool="bbox" class="btn">▢ BBox</ToolButton>
+        <button class="btn" :class="{ 'lf-tool-active': engine.activeTool === null }" @click="engine.setActiveTool(null)">↖ Select</button>
+        <button class="btn" :class="{ 'lf-tool-active': engine.activeTool === 'bbox' }" @click="engine.setActiveTool('bbox')">▢ BBox</button>
       </div>
       <div class="tool-group">
         <span class="group-label">Class</span>
@@ -89,7 +88,7 @@ const ToolbarPanel = defineComponent({
       </div>
     </div>
   `,
-  components: { ToolButton },
+  components: {},
 })
 
 const SidebarPanel = defineComponent({

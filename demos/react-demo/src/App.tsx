@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   AnnotationProvider,
   AnnotationCanvas,
-  ToolButton,
   useAnnotation,
 } from '@labelflow-core/react'
 import type { BoundingBox } from '@labelflow-core/react'
@@ -22,18 +21,24 @@ function Toolbar({ onExport, onImport }: {
   onExport: () => void
   onImport: () => void
 }) {
-  const { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
+  const { engine, setActiveTool, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
 
   return (
     <div style={styles.toolbar}>
       <div style={styles.toolGroup}>
         <span style={styles.groupLabel}>Tools</span>
-        <ToolButton tool={null} style={styles.btn} activeStyle={styles.btnActive}>
+        <button
+          style={{ ...styles.btn, ...(engine.activeTool === null ? styles.btnActive : {}) }}
+          onClick={() => setActiveTool(null)}
+        >
           ↖ Select
-        </ToolButton>
-        <ToolButton tool="bbox" style={styles.btn} activeStyle={styles.btnActive}>
+        </button>
+        <button
+          style={{ ...styles.btn, ...(engine.activeTool === 'bbox' ? styles.btnActive : {}) }}
+          onClick={() => setActiveTool('bbox')}
+        >
           ▢ BBox
-        </ToolButton>
+        </button>
       </div>
 
       <div style={styles.toolGroup}>

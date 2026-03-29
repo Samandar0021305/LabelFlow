@@ -19,11 +19,7 @@ npm install @labelflow-core/vue
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import {
-  AnnotationProvider,
-  AnnotationCanvas,
-  ToolButton,
-} from '@labelflow-core/vue'
+import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/vue'
 import type { BoundingBox } from '@labelflow-core/vue'
 
 const annotations = ref<BoundingBox[]>([])
@@ -31,16 +27,39 @@ const annotations = ref<BoundingBox[]>([])
 
 <template>
   <AnnotationProvider :annotations="annotations" @change="annotations = $event">
-    <div style="display: flex; gap: 8px; padding: 8px">
-      <ToolButton :tool="null">Select</ToolButton>
-      <ToolButton tool="bbox">Draw BBox</ToolButton>
-    </div>
+    <Toolbar />
     <AnnotationCanvas src="/photo.jpg" :width="800" :height="600" />
   </AnnotationProvider>
 </template>
 ```
 
-That's it. Click "Draw BBox", then click and drag on the image to draw a bounding box. Click "Select" to switch to selection mode where you can click, drag, and resize existing boxes.
+```vue
+<!-- Toolbar.vue -->
+<script setup lang="ts">
+import { useAnnotation } from '@labelflow-core/vue'
+
+const { engine, setActiveTool } = useAnnotation()
+</script>
+
+<template>
+  <div style="display: flex; gap: 8px; padding: 8px">
+    <button
+      @click="setActiveTool(null)"
+      :style="{ background: engine.activeTool === null ? '#2563eb' : '#fff', color: engine.activeTool === null ? '#fff' : '#000' }"
+    >
+      Select
+    </button>
+    <button
+      @click="setActiveTool('bbox')"
+      :style="{ background: engine.activeTool === 'bbox' ? '#2563eb' : '#fff', color: engine.activeTool === 'bbox' ? '#fff' : '#000' }"
+    >
+      Draw BBox
+    </button>
+  </div>
+</template>
+```
+
+Click "Draw BBox", then click and drag on the image to draw a bounding box. Click "Select" to switch to selection mode where you can click, drag, and resize existing boxes.
 
 ---
 
@@ -101,31 +120,7 @@ The canvas where the image is displayed and annotations are drawn. Place it insi
 | `width` | `number \| string` | `'100%'` | Canvas width. Number = pixels, string = CSS value |
 | `height` | `number \| string` | `'100%'` | Canvas height |
 
-The image automatically fits inside the canvas while preserving its aspect ratio. Changing `width` or `height` re-fits the image.
-
-### `<ToolButton>`
-
-A button that activates a tool. It automatically knows whether it's the active tool and adds the CSS class `lf-tool-active` when active.
-
-```vue
-<ToolButton :tool="null">Select</ToolButton>
-<ToolButton tool="bbox">Draw Box</ToolButton>
-```
-
-**Props:**
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `tool` | `'bbox' \| null` | `null` | `'bbox'` = draw mode, `null` = select mode |
-
-**Styling:** The active button gets `data-active="true"` attribute and `lf-tool-active` CSS class. Style it with:
-
-```css
-.lf-tool-active {
-  background-color: #2563eb;
-  color: white;
-}
-```
+The image automatically fits inside the canvas while preserving its aspect ratio.
 
 ---
 
@@ -133,7 +128,7 @@ A button that activates a tool. It automatically knows whether it's the active t
 
 ### `useAnnotation()`
 
-Access the annotation engine and actions from any component inside `<AnnotationProvider>`.
+Access the annotation engine and actions from any component inside `<AnnotationProvider>`. This is the primary way to build your own toolbar, sidebar, or any custom UI.
 
 ```vue
 <script setup lang="ts">
@@ -152,30 +147,51 @@ const {
 </script>
 
 <template>
+  <!-- Tool switching — use your own buttons, any UI library -->
   <button @click="setActiveTool('bbox')">Draw</button>
   <button @click="setActiveTool(null)">Select</button>
+
+  <!-- Color -->
   <button @click="setColor('#FF6B6B')">Red</button>
   <button @click="setColor(null)">Random</button>
+
+  <!-- Actions -->
   <button @click="deleteSelected">Delete</button>
   <button @click="clearAll">Clear All</button>
+
+  <!-- Zoom -->
   <button @click="zoomIn">+</button>
   <button @click="zoomOut">-</button>
   <button @click="resetZoom">Fit</button>
+
+  <!-- Read state directly -->
   <p>{{ engine.annotations.length }} annotations</p>
+  <p>Tool: {{ engine.activeTool ?? 'select' }}</p>
+  <p>Selected: {{ engine.selectedId ?? 'none' }}</p>
 </template>
 ```
 
 **Reading state from `engine`:**
 
-```ts
-engine.annotations       // BoundingBox[] — all annotations
-engine.selectedId         // string | null — selected box ID
-engine.selectedAnnotation // BoundingBox | null — selected box object
-engine.activeTool         // 'bbox' | null
-engine.color              // current drawing color
-engine.zoom               // current zoom level
-engine.mode               // 'idle' | 'drawing' | 'selecting' | 'dragging' | 'resizing'
-```
+| Property | Type | Description |
+|----------|------|-------------|
+| `engine.annotations` | `BoundingBox[]` | All annotations |
+| `engine.selectedId` | `string \| null` | Selected box ID |
+| `engine.selectedAnnotation` | `BoundingBox \| null` | Selected box object |
+| `engine.activeTool` | `'bbox' \| null` | Current tool (`null` = select mode) |
+| `engine.color` | `string` | Current drawing color |
+| `engine.zoom` | `number` | Current zoom level |
+| `engine.mode` | `InteractionMode` | `'idle'` \| `'drawing'` \| `'selecting'` \| `'dragging'` \| `'resizing'` |
+
+**Programmatic actions on `engine`:**
+
+| Method | Description |
+|--------|-------------|
+| `engine.select(id)` | Select a box by ID |
+| `engine.deselect()` | Clear selection |
+| `engine.addAnnotation(bbox)` | Add a box programmatically |
+| `engine.updateAnnotation(id, updates)` | Update a box |
+| `engine.deleteAnnotation(id)` | Delete a box |
 
 ---
 
@@ -260,17 +276,17 @@ const color = ref<string | null>(null)
 
 <template>
   <AnnotationProvider :color="color" ...>
+    <!-- Fixed color -->
     <button @click="color = '#FF6B6B'">Red</button>
     <button @click="color = '#4ECDC4'">Teal</button>
-    <button @click="color = '#45B7D1'">Blue</button>
+
+    <!-- Random color — each box gets a unique color -->
     <button @click="color = null">Random</button>
+
     <AnnotationCanvas src="/photo.jpg" />
   </AnnotationProvider>
 </template>
 ```
-
-- **Fixed color:** `:color="'#FF6B6B'"` — every new box is red
-- **Random:** `:color="null"` — each box gets a different color from the built-in palette
 
 ---
 
@@ -293,7 +309,7 @@ const w = ref(800)
 </template>
 ```
 
-The image always fits inside the canvas, centered, with correct aspect ratio. All annotations stay in the correct position regardless of canvas size.
+The image always fits inside the canvas, centered, with correct aspect ratio.
 
 ---
 
@@ -319,32 +335,24 @@ The image always fits inside the canvas, centered, with correct aspect ratio. Al
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import {
-  AnnotationProvider,
-  AnnotationCanvas,
-  ToolButton,
-  useAnnotation,
-} from '@labelflow-core/vue'
+import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/vue'
 import type { BoundingBox } from '@labelflow-core/vue'
 
 const annotations = ref<BoundingBox[]>([])
 const color = ref<string | null>(null)
+const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
 </script>
 
 <template>
   <div style="display: flex; flex-direction: column; height: 100vh">
-    <AnnotationProvider
-      :annotations="annotations"
-      :color="color"
-      @change="annotations = $event"
-    >
-      <ToolbarPanel :color="color" @update:color="color = $event" />
+    <AnnotationProvider :annotations="annotations" :color="color" @change="annotations = $event">
+      <ToolbarSection :colors="COLORS" v-model:color="color" />
       <div style="display: flex; flex: 1">
         <AnnotationCanvas
           src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80"
           :style="{ flex: 1, background: '#1a1a2e' }"
         />
-        <ListPanel />
+        <ListSection />
       </div>
     </AnnotationProvider>
   </div>
@@ -353,27 +361,31 @@ const color = ref<string | null>(null)
 <script lang="ts">
 import { defineComponent } from 'vue'
 
-const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
-
-const ToolbarPanel = defineComponent({
-  props: { color: [String, null] },
+const ToolbarSection = defineComponent({
+  props: { colors: Array, color: [String, null] },
   emits: ['update:color'],
   setup(props, { emit }) {
-    const { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
-    return { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom, COLORS, emit }
+    const { engine, setActiveTool, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
+    return { engine, setActiveTool, setColor: (c: string | null) => { setColor(c); emit('update:color', c) }, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom }
   },
   template: `
-    <div style="display: flex; gap: 8px; padding: 8px; background: #fff; border-bottom: 1px solid #eee">
-      <ToolButton :tool="null" class="btn">Select</ToolButton>
-      <ToolButton tool="bbox" class="btn">BBox</ToolButton>
+    <div style="display: flex; gap: 8px; padding: 8px; background: #fff; border-bottom: 1px solid #eee; flex-wrap: wrap; align-items: center">
+      <button @click="setActiveTool(null)"
+        :style="{ padding: '6px 12px', background: engine.activeTool === null ? '#2563eb' : '#fff', color: engine.activeTool === null ? '#fff' : '#000', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer' }">
+        Select
+      </button>
+      <button @click="setActiveTool('bbox')"
+        :style="{ padding: '6px 12px', background: engine.activeTool === 'bbox' ? '#2563eb' : '#fff', color: engine.activeTool === 'bbox' ? '#fff' : '#000', border: '1px solid #ddd', borderRadius: '6px', cursor: 'pointer' }">
+        BBox
+      </button>
 
-      <button v-for="c in COLORS" :key="c"
-        @click="setColor(c)"
-        :style="{ width: '24px', height: '24px', borderRadius: '4px', border: 'none',
-                  background: c, cursor: 'pointer',
-                  outline: engine.color === c ? '2px solid ' + c : 'none', outlineOffset: '2px' }"
-      />
+      <span style="border-left: 1px solid #ddd; height: 20px; margin: 0 4px" />
+
+      <button v-for="c in colors" :key="c" @click="setColor(c)"
+        :style="{ width: '24px', height: '24px', borderRadius: '4px', border: 'none', background: c, cursor: 'pointer', outline: engine.color === c ? '2px solid ' + c : 'none', outlineOffset: '2px' }" />
       <button @click="setColor(null)">Random</button>
+
+      <span style="border-left: 1px solid #ddd; height: 20px; margin: 0 4px" />
 
       <button @click="zoomIn">+</button>
       <button @click="zoomOut">-</button>
@@ -384,10 +396,9 @@ const ToolbarPanel = defineComponent({
       <span style="margin-left: auto; color: #888">{{ engine.annotations.length }} boxes</span>
     </div>
   `,
-  components: { ToolButton },
 })
 
-const ListPanel = defineComponent({
+const ListSection = defineComponent({
   setup() {
     const { engine } = useAnnotation()
     return { engine }
@@ -412,16 +423,9 @@ const ListPanel = defineComponent({
 })
 
 export default defineComponent({
-  components: { AnnotationProvider, AnnotationCanvas, ToolbarPanel, ListPanel },
+  components: { AnnotationProvider, AnnotationCanvas, ToolbarSection, ListSection },
 })
 </script>
-
-<style>
-.lf-tool-active {
-  background-color: #2563eb !important;
-  color: white !important;
-}
-</style>
 ```
 
 ---

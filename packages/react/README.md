@@ -18,29 +18,43 @@ npm install @labelflow-core/react
 
 ```tsx
 import { useState } from 'react'
-import {
-  AnnotationProvider,
-  AnnotationCanvas,
-  ToolButton,
-} from '@labelflow-core/react'
+import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/react'
 import type { BoundingBox } from '@labelflow-core/react'
+
+function Toolbar() {
+  const { engine, setActiveTool } = useAnnotation()
+
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: 8 }}>
+      <button
+        onClick={() => setActiveTool(null)}
+        style={{ background: engine.activeTool === null ? '#2563eb' : '#fff', color: engine.activeTool === null ? '#fff' : '#000' }}
+      >
+        Select
+      </button>
+      <button
+        onClick={() => setActiveTool('bbox')}
+        style={{ background: engine.activeTool === 'bbox' ? '#2563eb' : '#fff', color: engine.activeTool === 'bbox' ? '#fff' : '#000' }}
+      >
+        Draw BBox
+      </button>
+    </div>
+  )
+}
 
 function App() {
   const [annotations, setAnnotations] = useState<BoundingBox[]>([])
 
   return (
     <AnnotationProvider annotations={annotations} onChange={setAnnotations}>
-      <div style={{ display: 'flex', gap: 8, padding: 8 }}>
-        <ToolButton tool={null}>Select</ToolButton>
-        <ToolButton tool="bbox">Draw BBox</ToolButton>
-      </div>
+      <Toolbar />
       <AnnotationCanvas src="/photo.jpg" width={800} height={600} />
     </AnnotationProvider>
   )
 }
 ```
 
-That's it. Click "Draw BBox", then click and drag on the image to draw a bounding box. Click "Select" to switch to selection mode where you can click, drag, and resize existing boxes.
+Click "Draw BBox", then click and drag on the image to draw a bounding box. Click "Select" to switch to selection mode where you can click, drag, and resize existing boxes.
 
 ---
 
@@ -102,40 +116,13 @@ The canvas where the image is displayed and annotations are drawn. Place it insi
 
 The image automatically fits inside the canvas while preserving its aspect ratio. Changing `width` or `height` re-fits the image.
 
-### `<ToolButton>`
-
-A button that activates a tool. It automatically knows whether it's the active tool and applies active styles.
-
-```tsx
-<ToolButton
-  tool="bbox"                            // Which tool this button activates
-  style={{ padding: '8px 16px' }}        // Base styles
-  activeStyle={{ background: '#2563eb', color: '#fff' }}  // Styles when active
-  className="btn"                        // Base CSS class
-  activeClassName="btn-active"           // CSS class when active
->
-  Draw Box
-</ToolButton>
-```
-
-**Props:**
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `tool` | `'bbox' \| null` | — | `'bbox'` = draw mode, `null` = select mode |
-| `style` | `CSSProperties` | — | Base button styles |
-| `activeStyle` | `CSSProperties` | — | Merged on top when this tool is active |
-| `className` | `string` | — | Base CSS class |
-| `activeClassName` | `string` | — | Added when active |
-| `children` | `ReactNode` | tool name | Button content |
-
 ---
 
 ## Hooks
 
 ### `useAnnotation()`
 
-Access the annotation engine and actions from any component inside `<AnnotationProvider>`.
+Access the annotation engine and actions from any component inside `<AnnotationProvider>`. This is the primary way to build your own toolbar, sidebar, or any custom UI.
 
 ```tsx
 import { useAnnotation } from '@labelflow-core/react'
@@ -154,16 +141,27 @@ function MyToolbar() {
 
   return (
     <div>
+      {/* Tool switching — use your own buttons, any UI library */}
       <button onClick={() => setActiveTool('bbox')}>Draw</button>
       <button onClick={() => setActiveTool(null)}>Select</button>
+
+      {/* Color — set fixed or null for random */}
       <button onClick={() => setColor('#FF6B6B')}>Red</button>
-      <button onClick={() => setColor(null)}>Random Color</button>
+      <button onClick={() => setColor(null)}>Random</button>
+
+      {/* Actions */}
       <button onClick={deleteSelected}>Delete Selected</button>
       <button onClick={clearAll}>Clear All</button>
-      <button onClick={zoomIn}>Zoom In</button>
-      <button onClick={zoomOut}>Zoom Out</button>
+
+      {/* Zoom */}
+      <button onClick={zoomIn}>+</button>
+      <button onClick={zoomOut}>-</button>
       <button onClick={resetZoom}>Fit</button>
+
+      {/* Read state directly from engine */}
       <p>{engine.annotations.length} annotations</p>
+      <p>Tool: {engine.activeTool ?? 'select'}</p>
+      <p>Selected: {engine.selectedId ?? 'none'}</p>
     </div>
   )
 }
@@ -171,17 +169,25 @@ function MyToolbar() {
 
 **Reading state from `engine`:**
 
-```tsx
-const { engine } = useAnnotation()
+| Property | Type | Description |
+|----------|------|-------------|
+| `engine.annotations` | `BoundingBox[]` | All annotations |
+| `engine.selectedId` | `string \| null` | Selected box ID |
+| `engine.selectedAnnotation` | `BoundingBox \| null` | Selected box object |
+| `engine.activeTool` | `'bbox' \| null` | Current tool (`null` = select mode) |
+| `engine.color` | `string` | Current drawing color |
+| `engine.zoom` | `number` | Current zoom level |
+| `engine.mode` | `InteractionMode` | `'idle'` \| `'drawing'` \| `'selecting'` \| `'dragging'` \| `'resizing'` |
 
-engine.annotations      // BoundingBox[] — all annotations
-engine.selectedId        // string | null — selected box ID
-engine.selectedAnnotation // BoundingBox | null — selected box object
-engine.activeTool        // 'bbox' | null
-engine.color             // current drawing color
-engine.zoom              // current zoom level
-engine.mode              // 'idle' | 'drawing' | 'selecting' | 'dragging' | 'resizing'
-```
+**Programmatic actions on `engine`:**
+
+| Method | Description |
+|--------|-------------|
+| `engine.select(id)` | Select a box by ID |
+| `engine.deselect()` | Clear selection |
+| `engine.addAnnotation(bbox)` | Add a box programmatically |
+| `engine.updateAnnotation(id, updates)` | Update a box |
+| `engine.deleteAnnotation(id)` | Delete a box |
 
 ---
 
@@ -195,7 +201,6 @@ Annotations are plain arrays. Pass them in to render, read them out to save.
 function App() {
   const [annotations, setAnnotations] = useState<BoundingBox[]>([])
 
-  // Load from API
   useEffect(() => {
     fetch('/api/annotations')
       .then(res => res.json())
@@ -252,22 +257,18 @@ Coordinates are in **original image pixels** — they don't change when the canv
 ## Color Control
 
 ```tsx
-// Fixed color — every new box is red
-<AnnotationProvider color="#FF6B6B" ...>
-
-// Random color — each box gets a different color from the built-in palette
-<AnnotationProvider color={null} ...>
-
-// User-selectable
 function App() {
   const [color, setColor] = useState<string | null>(null)
 
   return (
-    <AnnotationProvider color={color} onChange={setAnnotations} ...>
+    <AnnotationProvider color={color} annotations={annotations} onChange={setAnnotations}>
+      {/* Fixed color — every new box is red */}
       <button onClick={() => setColor('#FF6B6B')}>Red</button>
       <button onClick={() => setColor('#4ECDC4')}>Teal</button>
-      <button onClick={() => setColor('#45B7D1')}>Blue</button>
+
+      {/* Random color — each box gets a unique color */}
       <button onClick={() => setColor(null)}>Random</button>
+
       <AnnotationCanvas src="/photo.jpg" />
     </AnnotationProvider>
   )
@@ -285,13 +286,13 @@ function App() {
 // Fill parent container
 <AnnotationCanvas src="/photo.jpg" width="100%" height="100%" />
 
-// Dynamic — resizable by the user
+// Dynamic resize
 const [w, setW] = useState(800)
 <AnnotationCanvas src="/photo.jpg" width={w} height={600} />
 <input type="range" min={400} max={1400} value={w} onChange={e => setW(+e.target.value)} />
 ```
 
-The image always fits within the canvas, centered, with correct aspect ratio. All annotations stay in the correct position regardless of canvas size.
+The image always fits within the canvas, centered, with correct aspect ratio.
 
 ---
 
@@ -315,28 +316,29 @@ The image always fits within the canvas, centered, with correct aspect ratio. Al
 ## Full Example
 
 ```tsx
-import { useState, useEffect } from 'react'
-import {
-  AnnotationProvider,
-  AnnotationCanvas,
-  ToolButton,
-  useAnnotation,
-} from '@labelflow-core/react'
+import { useState } from 'react'
+import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/react'
 import type { BoundingBox } from '@labelflow-core/react'
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
 
 function Toolbar() {
-  const { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
+  const { engine, setActiveTool, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
 
   return (
     <div style={{ display: 'flex', gap: 8, padding: 8, background: '#fff', borderBottom: '1px solid #eee' }}>
-      <ToolButton tool={null} style={{ padding: '6px 12px' }} activeStyle={{ background: '#2563eb', color: '#fff' }}>
+      <button
+        onClick={() => setActiveTool(null)}
+        style={{ padding: '6px 12px', background: engine.activeTool === null ? '#2563eb' : '#fff', color: engine.activeTool === null ? '#fff' : '#000', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer' }}
+      >
         Select
-      </ToolButton>
-      <ToolButton tool="bbox" style={{ padding: '6px 12px' }} activeStyle={{ background: '#2563eb', color: '#fff' }}>
+      </button>
+      <button
+        onClick={() => setActiveTool('bbox')}
+        style={{ padding: '6px 12px', background: engine.activeTool === 'bbox' ? '#2563eb' : '#fff', color: engine.activeTool === 'bbox' ? '#fff' : '#000', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer' }}
+      >
         BBox
-      </ToolButton>
+      </button>
 
       <span style={{ borderLeft: '1px solid #ddd', margin: '0 4px' }} />
 
@@ -397,17 +399,6 @@ function AnnotationList() {
 
 export default function App() {
   const [annotations, setAnnotations] = useState<BoundingBox[]>([])
-
-  // Example: load from server on mount
-  // useEffect(() => {
-  //   fetch('/api/annotations').then(r => r.json()).then(setAnnotations)
-  // }, [])
-
-  // Example: save to server on change
-  // function handleChange(list: BoundingBox[]) {
-  //   setAnnotations(list)
-  //   fetch('/api/annotations', { method: 'POST', body: JSON.stringify(list) })
-  // }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
