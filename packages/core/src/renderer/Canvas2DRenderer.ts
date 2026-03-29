@@ -59,7 +59,7 @@ export class Canvas2DRenderer {
 
     // Draw preview
     if (state.drawingPreview) {
-      this.drawPreview(state.drawingPreview, zoom, offset)
+      this.drawPreview(state.drawingPreview, zoom, offset, state.drawingColor)
     }
 
     ctx.restore()
@@ -150,18 +150,18 @@ export class Canvas2DRenderer {
     }
   }
 
-  private drawPreview(rect: Rect, zoom: number, offset: { x: number; y: number }): void {
+  private drawPreview(rect: Rect, zoom: number, offset: { x: number; y: number }, color: string): void {
     const ctx = this.ctx
     const canvasRect = rectImageToCanvas(rect, zoom, offset)
 
-    ctx.strokeStyle = DEFAULTS.DEFAULT_COLOR
+    ctx.strokeStyle = color
     ctx.lineWidth = Math.max(1, DEFAULTS.STROKE_WIDTH / Math.sqrt(zoom))
     ctx.setLineDash([6, 4])
     ctx.strokeRect(canvasRect.x, canvasRect.y, canvasRect.width, canvasRect.height)
     ctx.setLineDash([])
 
     // Semi-transparent fill
-    ctx.fillStyle = DEFAULTS.DEFAULT_COLOR + '1A'
+    ctx.fillStyle = color + '1A'
     ctx.fillRect(canvasRect.x, canvasRect.y, canvasRect.width, canvasRect.height)
   }
 

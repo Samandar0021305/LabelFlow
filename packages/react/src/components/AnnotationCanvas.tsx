@@ -125,15 +125,25 @@ export function AnnotationCanvas({
     requestRender()
   }
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
-    engine.onWheel(getCanvasPoint(e as any), e.deltaY)
-    requestRender()
-  }
-
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     engine.onKeyDown(e.key)
     requestRender()
+  }, [engine, requestRender])
+
+  // Wheel: must be non-passive to allow preventDefault
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      engine.onWheel({ x: e.clientX - rect.left, y: e.clientY - rect.top }, e.deltaY)
+      requestRender()
+    }
+
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', onWheel)
   }, [engine, requestRender])
 
   useEffect(() => {
@@ -169,7 +179,6 @@ export function AnnotationCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
         onContextMenu={handleContextMenu}
       />
     </div>

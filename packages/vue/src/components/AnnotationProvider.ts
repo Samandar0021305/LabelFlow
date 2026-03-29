@@ -1,5 +1,5 @@
-import { defineComponent, type PropType, toRef, h, type SlotsType } from 'vue'
-import type { BoundingBox, AnnotationClass } from '@labelflow/core'
+import { defineComponent, type PropType, toRef } from 'vue'
+import type { BoundingBox } from '@labelflow/core'
 import { useAnnotationEngine } from '../composables/useAnnotationEngine'
 import { provideAnnotation } from '../composables/useAnnotationContext'
 
@@ -10,9 +10,9 @@ export const AnnotationProvider = defineComponent({
       type: Array as PropType<BoundingBox[]>,
       default: () => [],
     },
-    classes: {
-      type: Array as PropType<AnnotationClass[]>,
-      default: () => [],
+    color: {
+      type: [String, null] as PropType<string | null>,
+      default: null,
     },
   },
   emits: ['change', 'select', 'create', 'update', 'delete'],
@@ -20,7 +20,7 @@ export const AnnotationProvider = defineComponent({
     const {
       engine,
       setActiveTool,
-      setActiveClass,
+      setColor,
       deleteSelected,
       clearAll,
       zoomIn,
@@ -28,7 +28,7 @@ export const AnnotationProvider = defineComponent({
       resetZoom,
     } = useAnnotationEngine({
       annotations: toRef(props, 'annotations'),
-      classes: toRef(props, 'classes'),
+      color: toRef(props, 'color'),
       onChange: (anns) => emit('change', anns),
       onSelect: (id) => emit('select', id),
       onCreate: (bbox) => emit('create', bbox),
@@ -39,7 +39,7 @@ export const AnnotationProvider = defineComponent({
     provideAnnotation({
       engine,
       setActiveTool,
-      setActiveClass,
+      setColor,
       deleteSelected,
       clearAll,
       zoomIn,

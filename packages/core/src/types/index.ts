@@ -28,14 +28,6 @@ export interface BoundingBox {
   rotation: number
   label?: string
   color: string
-  classId?: number
-  className?: string
-}
-
-export interface AnnotationClass {
-  id: string
-  name: string
-  color: string
 }
 
 // ─── Tool Types ─────────────────────────────────────────
@@ -96,8 +88,8 @@ export interface RenderState {
   hoveredId: string | null
   activeHandlePosition: HandlePosition | null
   drawingPreview: Rect | null
+  drawingColor: string
   viewport: ViewportState
-  classes: AnnotationClass[]
 }
 
 // ─── Constants ──────────────────────────────────────────

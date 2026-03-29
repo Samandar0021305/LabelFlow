@@ -1,7 +1,7 @@
 // Types
 export type {
   Point, Size, Rect,
-  BoundingBox, AnnotationClass,
+  BoundingBox,
   ToolType, InteractionMode, HandlePosition,
   EngineEvents, ViewportState, RenderState,
   ToolConfig, Handle,

@@ -1,10 +1,10 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
 import { AnnotationEngine } from '@labelflow/core'
-import type { BoundingBox, AnnotationClass, ToolType } from '@labelflow/core'
+import type { BoundingBox, ToolType } from '@labelflow/core'
 
 export function useAnnotationEngine(options?: {
   annotations?: BoundingBox[]
-  classes?: AnnotationClass[]
+  color?: string | null
   onChange?: (annotations: BoundingBox[]) => void
   onSelect?: (id: string | null) => void
   onCreate?: (bbox: BoundingBox) => void
@@ -17,25 +17,30 @@ export function useAnnotationEngine(options?: {
   }
   const engine = engineRef.current
 
-  // Simple version counter to trigger re-renders
   const [, setVersion] = useState(0)
   const rerender = useCallback(() => setVersion(v => v + 1), [])
 
-  // Sync external annotations → engine (only when reference changes)
-  const prevAnnotationsRef = useRef<BoundingBox[] | undefined>()
-  if (options?.annotations && options.annotations !== prevAnnotationsRef.current) {
-    prevAnnotationsRef.current = options.annotations
-    engine.setAnnotations(options.annotations)
-  }
+  // Track whether this sync came from us to avoid echo loops
+  const isSyncingRef = useRef(false)
 
-  // Sync classes
-  const prevClassesRef = useRef<AnnotationClass[] | undefined>()
-  if (options?.classes && options.classes !== prevClassesRef.current) {
-    prevClassesRef.current = options.classes
-    engine.setClasses(options.classes)
-  }
+  // Sync external annotations → engine via useEffect (not during render)
+  const annotationsRef = useRef(options?.annotations)
+  annotationsRef.current = options?.annotations
 
-  // Store callbacks in refs to avoid re-subscribing
+  useEffect(() => {
+    if (options?.annotations) {
+      isSyncingRef.current = true
+      engine.setAnnotations(options.annotations)
+      isSyncingRef.current = false
+    }
+  }, [options?.annotations, engine])
+
+  // Sync color via useEffect
+  useEffect(() => {
+    engine.setColor(options?.color ?? null)
+  }, [options?.color, engine])
+
+  // Store callbacks in refs
   const callbacksRef = useRef(options)
   callbacksRef.current = options
 
@@ -43,7 +48,10 @@ export function useAnnotationEngine(options?: {
   useEffect(() => {
     const unsubs = [
       engine.on('annotations:change', (anns) => {
-        callbacksRef.current?.onChange?.(anns)
+        // Don't echo back when we're syncing from props
+        if (!isSyncingRef.current) {
+          callbacksRef.current?.onChange?.(anns)
+        }
         rerender()
       }),
       engine.on('annotation:select', (id) => {
@@ -67,14 +75,14 @@ export function useAnnotationEngine(options?: {
     return () => unsubs.forEach(fn => fn())
   }, [engine, rerender])
 
-  // Action helpers
   const setActiveTool = useCallback((tool: ToolType | null) => {
     engine.setActiveTool(tool)
   }, [engine])
 
-  const setActiveClass = useCallback((classId: string | null) => {
-    engine.setActiveClass(classId)
-  }, [engine])
+  const setColor = useCallback((color: string | null) => {
+    engine.setColor(color)
+    rerender()
+  }, [engine, rerender])
 
   const deleteSelected = useCallback(() => {
     if (engine.selectedId) engine.deleteAnnotation(engine.selectedId)
@@ -91,8 +99,9 @@ export function useAnnotationEngine(options?: {
     activeTool: engine.activeTool,
     mode: engine.mode,
     zoom: engine.zoom,
+    color: engine.color,
     setActiveTool,
-    setActiveClass,
+    setColor,
     deleteSelected,
     clearAll,
     zoomIn: () => engine.zoomIn(),

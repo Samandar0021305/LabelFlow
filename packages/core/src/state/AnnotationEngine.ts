@@ -1,5 +1,5 @@
 import type {
-  Point, Size, Rect, BoundingBox, AnnotationClass,
+  Point, Size, Rect, BoundingBox,
   ToolType, InteractionMode, HandlePosition, EngineEvents,
   ViewportState, RenderState,
 } from '../types'
@@ -10,6 +10,21 @@ import {
   isPointInsideBbox, getHandleAtPoint, resizeBboxByHandle,
   clampBboxToImage, clampPointToImage, getTopAnnotationAtPoint,
 } from '../geometry'
+
+// ─── Random Color Generator ─────────────────────────────
+
+const PALETTE = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+  '#F8C471', '#82E0AA', '#F1948A', '#85929E', '#73C6B6',
+]
+let colorIndex = 0
+
+function nextColor(): string {
+  const color = PALETTE[colorIndex % PALETTE.length]
+  colorIndex++
+  return color
+}
 
 let nextId = 1
 function generateId(): string {
@@ -23,8 +38,9 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   private _hoveredId: string | null = null
   private _activeTool: ToolType | null = null
   private _mode: InteractionMode = 'idle'
-  private _classes: AnnotationClass[] = []
-  private _activeClassId: string | null = null
+
+  // Color — user o'rnatadi yoki random
+  private _color: string | null = null
 
   // Drawing state
   private _drawStart: Point | null = null
@@ -51,7 +67,7 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   private _panStart: Point | null = null
   private _panOffsetStart: Point | null = null
 
-  // ─── Getters ─────────��──────────────────────────
+  // ─── Getters ────────────────────────────────────
 
   get annotations(): BoundingBox[] { return this._annotations }
   get selectedId(): string | null { return this._selectedId }
@@ -63,11 +79,12 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   get imageSize(): Size { return this._imageSize }
   get canvasSize(): Size { return this._canvasSize }
   get image(): HTMLImageElement | null { return this._image }
-  get classes(): AnnotationClass[] { return this._classes }
-  get activeClassId(): string | null { return this._activeClassId }
   get drawingPreview(): Rect | null { return this._drawingPreview }
   get activeHandle(): HandlePosition | null { return this._activeHandle }
   get isPanning(): boolean { return this._isPanning }
+
+  /** Hozirgi color — user bergan yoki keyingi random */
+  get color(): string { return this._color ?? PALETTE[colorIndex % PALETTE.length] }
 
   get selectedAnnotation(): BoundingBox | null {
     return this._annotations.find(a => a.id === this._selectedId) ?? null
@@ -90,8 +107,8 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       hoveredId: this._hoveredId,
       activeHandlePosition: this._activeHandle,
       drawingPreview: this._drawingPreview,
+      drawingColor: this.color,
       viewport: this.viewport,
-      classes: this._classes,
     }
   }
 
@@ -108,12 +125,9 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     if (this._image) this.fitImageToCanvas()
   }
 
-  setClasses(classes: AnnotationClass[]): void {
-    this._classes = classes
-  }
-
-  setActiveClass(classId: string | null): void {
-    this._activeClassId = classId
+  /** User color o'rnatadi — null bo'lsa har safar random */
+  setColor(color: string | null): void {
+    this._color = color
   }
 
   setAnnotations(annotations: BoundingBox[]): void {
@@ -153,7 +167,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   setZoom(zoom: number, focalPoint?: Point): void {
     const clamped = Math.max(DEFAULTS.ZOOM_MIN, Math.min(DEFAULTS.ZOOM_MAX, zoom))
     if (focalPoint) {
-      // Zoom towards focal point
       const imgPoint = this.canvasToImage(focalPoint)
       this._zoom = clamped
       this._offset = {
@@ -161,7 +174,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
         y: focalPoint.y - imgPoint.y * clamped,
       }
     } else {
-      // Zoom towards center
       const center = { x: this._canvasSize.width / 2, y: this._canvasSize.height / 2 }
       const imgPoint = this.canvasToImage(center)
       this._zoom = clamped
@@ -198,7 +210,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   // ─── Pointer Events (framework adapters call these) ───
 
   onPointerDown(canvasPoint: Point, button: number = 0): void {
-    // Middle button or right button → pan
     if (button === 1 || button === 2) {
       this._isPanning = true
       this._panStart = canvasPoint
@@ -216,7 +227,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   }
 
   onPointerMove(canvasPoint: Point): void {
-    // Panning
     if (this._isPanning && this._panStart && this._panOffsetStart) {
       this._offset = {
         x: this._panOffsetStart.x + (canvasPoint.x - this._panStart.x),
@@ -240,7 +250,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   }
 
   onPointerUp(_canvasPoint: Point): void {
-    // End panning
     if (this._isPanning) {
       this._isPanning = false
       this._panStart = null
@@ -308,16 +317,14 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       return
     }
 
-    const activeClass = this._classes.find(c => c.id === this._activeClassId)
+    // Color: user bergan bo'lsa shu, aks holda random
+    const drawColor = this._color ?? nextColor()
 
     const bbox: BoundingBox = {
       id: generateId(),
       ...rect,
       rotation: 0,
-      color: activeClass?.color ?? DEFAULTS.DEFAULT_COLOR,
-      classId: activeClass ? Number(activeClass.id) : undefined,
-      className: activeClass?.name,
-      label: activeClass?.name,
+      color: drawColor,
     }
 
     this._annotations.push(bbox)
@@ -345,8 +352,7 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
   // ─── Selection & Editing ────────────────────────
 
-  private handleSelectPointerDown(imagePoint: Point, canvasPoint: Point): void {
-    // 1. Check resize handles on selected bbox
+  private handleSelectPointerDown(imagePoint: Point, _canvasPoint: Point): void {
     if (this._selectedId) {
       const selected = this.selectedAnnotation
       if (selected) {
@@ -361,11 +367,9 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       }
     }
 
-    // 2. Check if clicking inside an annotation
     const hit = getTopAnnotationAtPoint(imagePoint, this._annotations)
     if (hit) {
       this.select(hit.id)
-      // Start dragging
       this._dragStart = imagePoint
       this._dragBboxOrigin = { x: hit.x, y: hit.y, width: hit.width, height: hit.height }
       this._mode = 'dragging'
@@ -373,7 +377,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       return
     }
 
-    // 3. Click on empty area → deselect
     this.deselect()
   }
 
@@ -390,7 +393,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       height: this._dragBboxOrigin.height,
     }
     const clamped = clampBboxToImage(newRect, this._imageSize)
-
     this.updateAnnotationRect(this._selectedId, clamped)
   }
 
@@ -476,7 +478,6 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     const idx = this._annotations.findIndex(a => a.id === id)
     if (idx === -1) return
     this._annotations[idx] = { ...this._annotations[idx], ...rect }
-    // No event here — emitted on finish
   }
 
   deleteAnnotation(id: string): void {
@@ -499,7 +500,7 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('annotation:select', null)
   }
 
-  // ─── Cleanup ──────��─────────────────────────────
+  // ─── Cleanup ────────────────────────────────────
 
   destroy(): void {
     this.cancelDrawing()

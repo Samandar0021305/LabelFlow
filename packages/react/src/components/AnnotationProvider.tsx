@@ -1,12 +1,13 @@
 import React from 'react'
-import type { BoundingBox, AnnotationClass, ToolType } from '@labelflow/core'
+import type { BoundingBox } from '@labelflow/core'
 import { useAnnotationEngine } from '../hooks/useAnnotationEngine'
 import { AnnotationCtx } from './AnnotationContext'
 
 export interface AnnotationProviderProps {
   children: React.ReactNode
   annotations?: BoundingBox[]
-  classes?: AnnotationClass[]
+  /** Active drawing color. null = random color per annotation */
+  color?: string | null
   onChange?: (annotations: BoundingBox[]) => void
   onSelect?: (id: string | null) => void
   onCreate?: (bbox: BoundingBox) => void
@@ -17,7 +18,7 @@ export interface AnnotationProviderProps {
 export function AnnotationProvider({
   children,
   annotations,
-  classes,
+  color,
   onChange,
   onSelect,
   onCreate,
@@ -27,21 +28,21 @@ export function AnnotationProvider({
   const {
     engine,
     setActiveTool,
-    setActiveClass,
+    setColor,
     deleteSelected,
     clearAll,
     zoomIn,
     zoomOut,
     resetZoom,
   } = useAnnotationEngine({
-    annotations, classes, onChange, onSelect, onCreate, onUpdate, onDelete,
+    annotations, color, onChange, onSelect, onCreate, onUpdate, onDelete,
   })
 
   return (
     <AnnotationCtx.Provider value={{
       engine,
       setActiveTool,
-      setActiveClass,
+      setColor,
       deleteSelected,
       clearAll,
       zoomIn,

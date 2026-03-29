@@ -1,10 +1,10 @@
-import { ref, shallowRef, watch, onUnmounted, type Ref } from 'vue'
+import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { AnnotationEngine } from '@labelflow/core'
-import type { BoundingBox, AnnotationClass, ToolType, InteractionMode, RenderState } from '@labelflow/core'
+import type { BoundingBox, ToolType, InteractionMode } from '@labelflow/core'
 
 export interface UseAnnotationEngineOptions {
   annotations?: Ref<BoundingBox[]>
-  classes?: Ref<AnnotationClass[]>
+  color?: Ref<string | null>
   onChange?: (annotations: BoundingBox[]) => void
   onSelect?: (id: string | null) => void
   onCreate?: (bbox: BoundingBox) => void
@@ -20,6 +20,7 @@ export function useAnnotationEngine(options?: UseAnnotationEngineOptions) {
   const activeTool = ref<ToolType | null>(null)
   const mode = ref<InteractionMode>('idle')
   const zoom = ref(1)
+  const color = ref<string>(engine.color)
 
   // Sync external annotations → engine
   if (options?.annotations) {
@@ -28,9 +29,11 @@ export function useAnnotationEngine(options?: UseAnnotationEngineOptions) {
     }, { immediate: true })
   }
 
-  if (options?.classes) {
-    watch(options.classes, (newClasses) => {
-      engine.setClasses(newClasses)
+  // Sync color
+  if (options?.color) {
+    watch(options.color, (newColor) => {
+      engine.setColor(newColor)
+      color.value = engine.color
     }, { immediate: true })
   }
 
@@ -76,13 +79,13 @@ export function useAnnotationEngine(options?: UseAnnotationEngineOptions) {
     engine.destroy()
   })
 
-  // Actions
   function setActiveTool(tool: ToolType | null) {
     engine.setActiveTool(tool)
   }
 
-  function setActiveClass(classId: string | null) {
-    engine.setActiveClass(classId)
+  function setColor(c: string | null) {
+    engine.setColor(c)
+    color.value = engine.color
   }
 
   function deleteSelected() {
@@ -100,8 +103,9 @@ export function useAnnotationEngine(options?: UseAnnotationEngineOptions) {
     activeTool,
     mode,
     zoom,
+    color,
     setActiveTool,
-    setActiveClass,
+    setColor,
     deleteSelected,
     clearAll,
     zoomIn: () => engine.zoomIn(),

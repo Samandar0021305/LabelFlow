@@ -5,18 +5,14 @@ import {
   ToolButton,
   useAnnotation,
 } from '@labelflow/react'
-import type { BoundingBox, AnnotationClass } from '@labelflow/react'
+import type { BoundingBox } from '@labelflow/react'
 
-const CLASSES: AnnotationClass[] = [
-  { id: '1', name: 'Car', color: '#FF6B6B' },
-  { id: '2', name: 'Person', color: '#4ECDC4' },
-  { id: '3', name: 'Tree', color: '#45B7D1' },
-]
+const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F', '#BB8FCE']
 
 const SAMPLE_IMAGE = 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80'
 
 function Toolbar() {
-  const { engine, setActiveClass, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
+  const { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
 
   return (
     <div style={styles.toolbar}>
@@ -31,21 +27,26 @@ function Toolbar() {
       </div>
 
       <div style={styles.toolGroup}>
-        <span style={styles.groupLabel}>Class</span>
-        {CLASSES.map(cls => (
+        <span style={styles.groupLabel}>Color</span>
+        {COLORS.map(c => (
           <button
-            key={cls.id}
+            key={c}
             style={{
-              ...styles.classBtn,
-              borderColor: cls.color,
-              backgroundColor: engine.activeClassId === cls.id ? cls.color : 'transparent',
-              color: engine.activeClassId === cls.id ? '#fff' : cls.color,
+              ...styles.colorBtn,
+              backgroundColor: c,
+              outline: engine.color === c ? `2px solid ${c}` : '2px solid transparent',
+              outlineOffset: 2,
             }}
-            onClick={() => setActiveClass(cls.id)}
-          >
-            {cls.name}
-          </button>
+            onClick={() => setColor(c)}
+          />
         ))}
+        <button
+          style={{ ...styles.btn, fontSize: 11 }}
+          onClick={() => setColor(null)}
+          title="Random color per annotation"
+        >
+          Random
+        </button>
       </div>
 
       <div style={styles.toolGroup}>
@@ -86,9 +87,15 @@ function AnnotationList() {
           }}
           onClick={() => engine.select(ann.id)}
         >
-          <span style={{ color: ann.color, fontWeight: 600 }}>
-            {ann.label ?? 'Unlabeled'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 10, height: 10, borderRadius: 2,
+              backgroundColor: ann.color, flexShrink: 0,
+            }} />
+            <span style={{ fontWeight: 600, fontSize: 13 }}>
+              {ann.label ?? ann.id.slice(0, 12)}
+            </span>
+          </div>
           <span style={styles.annCoords}>
             {Math.round(ann.x)}, {Math.round(ann.y)} — {Math.round(ann.width)}×{Math.round(ann.height)}
           </span>
@@ -105,12 +112,13 @@ function AnnotationList() {
 
 export default function App() {
   const [annotations, setAnnotations] = useState<BoundingBox[]>([])
+  const [color, setColor] = useState<string | null>(null)
 
   return (
     <div style={styles.root}>
       <AnnotationProvider
         annotations={annotations}
-        classes={CLASSES}
+        color={color}
         onChange={setAnnotations}
       >
         <Toolbar />
@@ -159,7 +167,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   btn: {
     padding: '6px 12px',
-    border: '1px solid #ddd',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#ddd',
     borderRadius: 6,
     backgroundColor: '#fff',
     cursor: 'pointer',
@@ -172,13 +182,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#fff',
     borderColor: '#2563eb',
   },
-  classBtn: {
-    padding: '4px 10px',
-    border: '2px solid',
-    borderRadius: 6,
+  colorBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    border: 'none',
     cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: 600,
     transition: 'all 0.15s',
   },
   mainArea: {

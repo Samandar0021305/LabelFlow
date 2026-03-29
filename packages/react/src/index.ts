@@ -14,6 +14,6 @@ export { useAnnotationEngine } from './hooks/useAnnotationEngine'
 
 // Re-export core types for convenience
 export type {
-  BoundingBox, AnnotationClass, ToolType,
+  BoundingBox, ToolType,
   InteractionMode, Point, Size, Rect,
 } from '@labelflow/core'
