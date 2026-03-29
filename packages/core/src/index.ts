@@ -5,6 +5,7 @@ export type {
   ToolType, InteractionMode, HandlePosition,
   EngineEvents, ViewportState, RenderState,
   ToolConfig, Handle,
+  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedBoundingBox,
 } from './types'
 export { DEFAULTS } from './types'
 

@@ -11,7 +11,17 @@ const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'
 
 const SAMPLE_IMAGE = 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80'
 
-function Toolbar() {
+// Serverdan kelgan tayyor annotationlar misoli
+const DEMO_ANNOTATIONS: BoundingBox[] = [
+  { id: 'demo_1', x: 180, y: 120, width: 200, height: 150, rotation: 0, color: '#FF6B6B', label: 'Building' },
+  { id: 'demo_2', x: 500, y: 300, width: 120, height: 180, rotation: 0, color: '#4ECDC4', label: 'Tower' },
+  { id: 'demo_3', x: 750, y: 200, width: 160, height: 100, rotation: 0, color: '#45B7D1', label: 'Bridge' },
+]
+
+function Toolbar({ onExport, onImport }: {
+  onExport: () => void
+  onImport: () => void
+}) {
   const { engine, setColor, deleteSelected, clearAll, zoomIn, zoomOut, resetZoom } = useAnnotation()
 
   return (
@@ -43,7 +53,6 @@ function Toolbar() {
         <button
           style={{ ...styles.btn, fontSize: 11 }}
           onClick={() => setColor(null)}
-          title="Random color per annotation"
         >
           Random
         </button>
@@ -54,6 +63,16 @@ function Toolbar() {
         <button style={styles.btn} onClick={zoomIn}>+</button>
         <button style={styles.btn} onClick={zoomOut}>−</button>
         <button style={styles.btn} onClick={resetZoom}>Fit</button>
+      </div>
+
+      <div style={styles.toolGroup}>
+        <span style={styles.groupLabel}>Data</span>
+        <button style={{ ...styles.btn, color: '#4ECDC4' }} onClick={onImport}>
+          Import Demo
+        </button>
+        <button style={{ ...styles.btn, color: '#45B7D1' }} onClick={onExport}>
+          Export JSON
+        </button>
       </div>
 
       <div style={styles.toolGroup}>
@@ -68,7 +87,7 @@ function Toolbar() {
   )
 }
 
-function AnnotationList() {
+function Sidebar({ exportedJSON }: { exportedJSON: string | null }) {
   const { engine } = useAnnotation()
   const annotations = engine.annotations
 
@@ -106,6 +125,53 @@ function AnnotationList() {
           Select BBox tool and draw on the image
         </p>
       )}
+
+      {exportedJSON && (
+        <div style={styles.jsonPanel}>
+          <h3 style={styles.sidebarTitle}>Exported JSON</h3>
+          <pre style={styles.jsonPre}>{exportedJSON}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CanvasSizeControls({
+  canvasWidth,
+  canvasHeight,
+  onWidthChange,
+  onHeightChange,
+}: {
+  canvasWidth: number
+  canvasHeight: number
+  onWidthChange: (w: number) => void
+  onHeightChange: (h: number) => void
+}) {
+  return (
+    <div style={styles.sizeControls}>
+      <span style={styles.groupLabel}>Canvas Size</span>
+      <div style={styles.sliderRow}>
+        <label style={styles.sliderLabel}>W: {canvasWidth}px</label>
+        <input
+          type="range"
+          min={300}
+          max={1400}
+          value={canvasWidth}
+          onChange={e => onWidthChange(Number(e.target.value))}
+          style={styles.slider}
+        />
+      </div>
+      <div style={styles.sliderRow}>
+        <label style={styles.sliderLabel}>H: {canvasHeight}px</label>
+        <input
+          type="range"
+          min={200}
+          max={900}
+          value={canvasHeight}
+          onChange={e => onHeightChange(Number(e.target.value))}
+          style={styles.slider}
+        />
+      </div>
     </div>
   )
 }
@@ -113,6 +179,28 @@ function AnnotationList() {
 export default function App() {
   const [annotations, setAnnotations] = useState<BoundingBox[]>([])
   const [color, setColor] = useState<string | null>(null)
+  const [canvasWidth, setCanvasWidth] = useState(900)
+  const [canvasHeight, setCanvasHeight] = useState(600)
+  const [exportedJSON, setExportedJSON] = useState<string | null>(null)
+
+  // ─── Import: tashqaridan list yuklash ──────────
+  function handleImport() {
+    // Serverdan kelgandek — shunchaki array berish
+    setAnnotations(DEMO_ANNOTATIONS)
+  }
+
+  // ─── Export: hozirgi annotationlarni olish ─────
+  function handleExport() {
+    // annotations — hozirgi rasmda qanday bo'lsa shunday
+    const json = JSON.stringify(annotations, null, 2)
+    setExportedJSON(json)
+
+    // Serverga saqlash misoli:
+    // await fetch('/api/annotations', {
+    //   method: 'POST',
+    //   body: JSON.stringify(annotations),
+    // })
+  }
 
   return (
     <div style={styles.root}>
@@ -121,13 +209,24 @@ export default function App() {
         color={color}
         onChange={setAnnotations}
       >
-        <Toolbar />
+        <Toolbar onExport={handleExport} onImport={handleImport} />
         <div style={styles.mainArea}>
-          <AnnotationCanvas
-            src={SAMPLE_IMAGE}
-            style={{ flex: 1, backgroundColor: '#1a1a2e' }}
-          />
-          <AnnotationList />
+          <div style={styles.canvasArea}>
+            <CanvasSizeControls
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              onWidthChange={setCanvasWidth}
+              onHeightChange={setCanvasHeight}
+            />
+            <div style={styles.canvasWrapper}>
+              <AnnotationCanvas
+                src={SAMPLE_IMAGE}
+                width={canvasWidth}
+                height={canvasHeight}
+              />
+            </div>
+          </div>
+          <Sidebar exportedJSON={exportedJSON} />
         </div>
       </AnnotationProvider>
     </div>
@@ -195,8 +294,46 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     overflow: 'hidden',
   },
+  canvasArea: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    backgroundColor: '#1a1a2e',
+    overflow: 'auto',
+  },
+  sizeControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '8px 16px',
+    backgroundColor: '#16213e',
+    borderBottom: '1px solid #0f3460',
+  },
+  sliderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sliderLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#8892b0',
+    minWidth: 75,
+    fontFamily: 'monospace',
+  },
+  slider: {
+    width: 120,
+    accentColor: '#2563eb',
+  },
+  canvasWrapper: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
   sidebar: {
-    width: 260,
+    width: 280,
     borderLeft: '1px solid #e0e0e0',
     backgroundColor: '#fafafa',
     overflowY: 'auto' as const,
@@ -228,5 +365,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     textAlign: 'center' as const,
     marginTop: 40,
+  },
+  jsonPanel: {
+    marginTop: 16,
+    borderTop: '1px solid #e0e0e0',
+    paddingTop: 12,
+  },
+  jsonPre: {
+    fontSize: 10,
+    lineHeight: 1.4,
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 6,
+    overflow: 'auto',
+    maxHeight: 300,
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-all' as const,
   },
 }

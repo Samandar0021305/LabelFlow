@@ -2,6 +2,7 @@ import type {
   Point, Size, Rect, BoundingBox,
   ToolType, InteractionMode, HandlePosition, EngineEvents,
   ViewportState, RenderState,
+  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedBoundingBox,
 } from '../types'
 import { DEFAULTS } from '../types'
 import { EventEmitter } from './EventEmitter'
@@ -497,6 +498,85 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this._selectedId = null
     this._hoveredId = null
     this.emit('annotations:change', [])
+    this.emit('annotation:select', null)
+  }
+
+  // ─── Export / Import ─────────────────────────────
+
+  /** Export as absolute pixel coordinates (includes image dimensions) */
+  exportJSON(format: 'pixel'): ExportDataPixel
+  /** Export as normalized 0-1 coordinates (portable, image-size independent) */
+  exportJSON(format: 'normalized'): ExportDataNormalized
+  exportJSON(format: 'pixel' | 'normalized' = 'pixel'): ExportData {
+    if (format === 'normalized') {
+      const { width: iw, height: ih } = this._imageSize
+      if (!iw || !ih) {
+        return { format: 'normalized', annotations: [] }
+      }
+      const normalized: NormalizedBoundingBox[] = this._annotations.map(a => ({
+        id: a.id,
+        x: a.x / iw,
+        y: a.y / ih,
+        width: a.width / iw,
+        height: a.height / ih,
+        rotation: a.rotation,
+        label: a.label,
+        color: a.color,
+      }))
+      return { format: 'normalized', annotations: normalized }
+    }
+
+    return {
+      format: 'pixel',
+      imageWidth: this._imageSize.width,
+      imageHeight: this._imageSize.height,
+      annotations: this._annotations.map(a => ({ ...a })),
+    }
+  }
+
+  /** Import annotations from JSON. Auto-detects pixel vs normalized format. */
+  importJSON(data: ExportData): void {
+    if (data.format === 'normalized') {
+      const { width: iw, height: ih } = this._imageSize
+      if (!iw || !ih) {
+        console.warn('Cannot import normalized annotations: no image loaded')
+        return
+      }
+      const annotations: BoundingBox[] = data.annotations.map(a => ({
+        id: a.id,
+        x: a.x * iw,
+        y: a.y * ih,
+        width: a.width * iw,
+        height: a.height * ih,
+        rotation: a.rotation,
+        label: a.label,
+        color: a.color,
+      }))
+      this._annotations = annotations
+    } else {
+      // Pixel format — if image sizes differ, scale annotations
+      const { imageWidth, imageHeight, annotations } = data
+      const { width: iw, height: ih } = this._imageSize
+
+      if (iw && ih && imageWidth && imageHeight && (imageWidth !== iw || imageHeight !== ih)) {
+        // Scale from source image size to current image size
+        const sx = iw / imageWidth
+        const sy = ih / imageHeight
+        this._annotations = annotations.map(a => ({
+          ...a,
+          x: a.x * sx,
+          y: a.y * sy,
+          width: a.width * sx,
+          height: a.height * sy,
+        }))
+      } else {
+        this._annotations = annotations.map(a => ({ ...a }))
+      }
+    }
+
+    this._selectedId = null
+    this._hoveredId = null
+    this.emit('annotations:change', this._annotations)
     this.emit('annotation:select', null)
   }
 

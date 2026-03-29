@@ -92,6 +92,33 @@ export interface RenderState {
   viewport: ViewportState
 }
 
+// ─── Export / Import Formats ────────────────────────────
+
+export interface ExportDataPixel {
+  format: 'pixel'
+  imageWidth: number
+  imageHeight: number
+  annotations: BoundingBox[]
+}
+
+export interface NormalizedBoundingBox {
+  id: string
+  x: number       // 0-1
+  y: number       // 0-1
+  width: number   // 0-1
+  height: number  // 0-1
+  rotation: number
+  label?: string
+  color: string
+}
+
+export interface ExportDataNormalized {
+  format: 'normalized'
+  annotations: NormalizedBoundingBox[]
+}
+
+export type ExportData = ExportDataPixel | ExportDataNormalized
+
 // ─── Constants ──────────────────────────────────────────
 
 export const DEFAULTS = {
