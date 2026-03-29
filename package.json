@@ -10,7 +10,10 @@
     "dev:react-demo": "pnpm --filter react-demo dev",
     "dev:vue-demo": "pnpm --filter vue-demo dev",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean"
+    "clean": "pnpm -r clean",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -20,5 +23,8 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
   }
 }
