@@ -1,6 +1,6 @@
 {
   "name": "@labelflow-core/engine",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Framework-agnostic image annotation engine — draw, select, drag, resize bounding boxes on images with zoom and pan support",
   "author": "samandar_log02",
   "homepage": "https://github.com/Samandar0021305/LabelFlow#readme",
