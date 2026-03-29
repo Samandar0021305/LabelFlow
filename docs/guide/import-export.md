@@ -4,12 +4,13 @@ Annotations are plain JavaScript arrays. No special format, no conversion needed
 
 ## Annotation Format
 
-Each annotation is a `BoundingBox` object with coordinates in **original image pixels**:
+Each annotation has a `type` field (`'bbox'` or `'polygon'`) with coordinates in **original image pixels**:
 
 ```json
 [
   {
     "id": "bbox_1_m5abc",
+    "type": "bbox",
     "x": 150,
     "y": 200,
     "width": 300,
@@ -17,6 +18,18 @@ Each annotation is a `BoundingBox` object with coordinates in **original image p
     "rotation": 0,
     "color": "#FF6B6B",
     "label": "Car"
+  },
+  {
+    "id": "poly_2_k8xyz",
+    "type": "polygon",
+    "points": [
+      { "x": 500, "y": 100 },
+      { "x": 650, "y": 80 },
+      { "x": 700, "y": 250 },
+      { "x": 520, "y": 280 }
+    ],
+    "color": "#4ECDC4",
+    "label": "Park"
   }
 ]
 ```

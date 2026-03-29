@@ -1,18 +1,20 @@
 import type {
-  Point, Size, Rect, BoundingBox,
+  Point, Size, Rect, BoundingBox, Polygon, Annotation,
   ToolType, InteractionMode, HandlePosition, EngineEvents,
   ViewportState, RenderState,
-  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedBoundingBox,
+  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedAnnotation,
 } from '../types'
 import { DEFAULTS } from '../types'
 import { EventEmitter } from './EventEmitter'
 import {
   canvasToImage, normalizeBbox, isBboxValid,
-  isPointInsideBbox, getHandleAtPoint, resizeBboxByHandle,
+  getHandleAtPoint, resizeBboxByHandle,
   clampBboxToImage, clampPointToImage, getTopAnnotationAtPoint,
+  isNearFirstPoint, getVertexAtPoint, translatePolygonPoints,
+  getPolygonBounds,
 } from '../geometry'
 
-// ─── Random Color Generator ─────────────────────────────
+// ─── Helpers ────────────────────────────────────────────
 
 const PALETTE = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -20,41 +22,45 @@ const PALETTE = [
   '#F8C471', '#82E0AA', '#F1948A', '#85929E', '#73C6B6',
 ]
 let colorIndex = 0
-
 function nextColor(): string {
-  const color = PALETTE[colorIndex % PALETTE.length]
-  colorIndex++
-  return color
+  return PALETTE[colorIndex++ % PALETTE.length]
 }
 
 let nextId = 1
-function generateId(): string {
-  return `bbox_${nextId++}_${Date.now().toString(36)}`
+function generateId(prefix: string = 'ann'): string {
+  return `${prefix}_${nextId++}_${Date.now().toString(36)}`
 }
 
 export class AnnotationEngine extends EventEmitter<EngineEvents> {
   // ─── State ──────────────────────────────────────
-  private _annotations: BoundingBox[] = []
+  private _annotations: Annotation[] = []
   private _selectedId: string | null = null
   private _hoveredId: string | null = null
   private _activeTool: ToolType | null = null
   private _mode: InteractionMode = 'idle'
-
-  // Color — user o'rnatadi yoki random
   private _color: string | null = null
 
-  // Drawing state
-  private _drawStart: Point | null = null
-  private _drawCurrent: Point | null = null
+  // BBox drawing
+  private _bboxDrawStart: Point | null = null
+  private _bboxDrawCurrent: Point | null = null
   private _drawingPreview: Rect | null = null
 
-  // Dragging state
+  // Polygon drawing
+  private _polygonPoints: Point[] = []
+  private _polygonMousePos: Point | null = null
+
+  // Dragging (both bbox and polygon)
   private _dragStart: Point | null = null
   private _dragBboxOrigin: Rect | null = null
+  private _dragPolygonOrigin: Point[] | null = null
 
-  // Resizing state
+  // BBox resizing
   private _activeHandle: HandlePosition | null = null
   private _resizeStart: Point | null = null
+
+  // Polygon vertex dragging
+  private _draggingVertexIndex: number | null = null
+  private _vertexDragStart: Point | null = null
 
   // Viewport
   private _zoom = 1
@@ -70,7 +76,7 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
   // ─── Getters ────────────────────────────────────
 
-  get annotations(): BoundingBox[] { return this._annotations }
+  get annotations(): Annotation[] { return this._annotations }
   get selectedId(): string | null { return this._selectedId }
   get hoveredId(): string | null { return this._hoveredId }
   get activeTool(): ToolType | null { return this._activeTool }
@@ -83,11 +89,9 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   get drawingPreview(): Rect | null { return this._drawingPreview }
   get activeHandle(): HandlePosition | null { return this._activeHandle }
   get isPanning(): boolean { return this._isPanning }
-
-  /** Hozirgi color — user bergan yoki keyingi random */
   get color(): string { return this._color ?? PALETTE[colorIndex % PALETTE.length] }
 
-  get selectedAnnotation(): BoundingBox | null {
+  get selectedAnnotation(): Annotation | null {
     return this._annotations.find(a => a.id === this._selectedId) ?? null
   }
 
@@ -108,7 +112,11 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       hoveredId: this._hoveredId,
       activeHandlePosition: this._activeHandle,
       drawingPreview: this._drawingPreview,
+      polygonDrawingPoints: this._polygonPoints,
+      polygonMousePosition: this._polygonMousePos,
+      draggingVertexIndex: this._draggingVertexIndex,
       drawingColor: this.color,
+      activeTool: this._activeTool,
       viewport: this.viewport,
     }
   }
@@ -126,12 +134,11 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     if (this._image) this.fitImageToCanvas()
   }
 
-  /** User color o'rnatadi — null bo'lsa har safar random */
   setColor(color: string | null): void {
     this._color = color
   }
 
-  setAnnotations(annotations: BoundingBox[]): void {
+  setAnnotations(annotations: Annotation[]): void {
     this._annotations = [...annotations]
     this.emit('annotations:change', this._annotations)
   }
@@ -149,68 +156,40 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('mode:change', 'idle')
   }
 
-  // ─── Viewport (zoom/pan) ────────────────────────
+  // ─── Viewport ───────────────────────────────────
 
   private fitImageToCanvas(): void {
     const { width: cw, height: ch } = this._canvasSize
     const { width: iw, height: ih } = this._imageSize
     if (!cw || !ch || !iw || !ih) return
-
     const scale = Math.min(cw / iw, ch / ih)
     this._zoom = scale
-    this._offset = {
-      x: (cw - iw * scale) / 2,
-      y: (ch - ih * scale) / 2,
-    }
+    this._offset = { x: (cw - iw * scale) / 2, y: (ch - ih * scale) / 2 }
     this.emitViewportChange()
   }
 
   setZoom(zoom: number, focalPoint?: Point): void {
     const clamped = Math.max(DEFAULTS.ZOOM_MIN, Math.min(DEFAULTS.ZOOM_MAX, zoom))
-    if (focalPoint) {
-      const imgPoint = this.canvasToImage(focalPoint)
-      this._zoom = clamped
-      this._offset = {
-        x: focalPoint.x - imgPoint.x * clamped,
-        y: focalPoint.y - imgPoint.y * clamped,
-      }
-    } else {
-      const center = { x: this._canvasSize.width / 2, y: this._canvasSize.height / 2 }
-      const imgPoint = this.canvasToImage(center)
-      this._zoom = clamped
-      this._offset = {
-        x: center.x - imgPoint.x * clamped,
-        y: center.y - imgPoint.y * clamped,
-      }
-    }
+    const focal = focalPoint ?? { x: this._canvasSize.width / 2, y: this._canvasSize.height / 2 }
+    const imgPoint = this.canvasToImage(focal)
+    this._zoom = clamped
+    this._offset = { x: focal.x - imgPoint.x * clamped, y: focal.y - imgPoint.y * clamped }
     this.emitViewportChange()
   }
 
-  zoomIn(focalPoint?: Point): void {
-    this.setZoom(this._zoom * DEFAULTS.ZOOM_STEP, focalPoint)
-  }
-
-  zoomOut(focalPoint?: Point): void {
-    this.setZoom(this._zoom / DEFAULTS.ZOOM_STEP, focalPoint)
-  }
-
-  resetZoom(): void {
-    this.fitImageToCanvas()
-  }
-
-  private emitViewportChange(): void {
-    this.emit('viewport:change', this.viewport)
-  }
-
-  // ─── Coordinate Helpers ─────────────────────────
+  zoomIn(fp?: Point): void { this.setZoom(this._zoom * DEFAULTS.ZOOM_STEP, fp) }
+  zoomOut(fp?: Point): void { this.setZoom(this._zoom / DEFAULTS.ZOOM_STEP, fp) }
+  resetZoom(): void { this.fitImageToCanvas() }
+  private emitViewportChange(): void { this.emit('viewport:change', this.viewport) }
 
   canvasToImage(canvasPoint: Point): Point {
     return canvasToImage(canvasPoint, this._zoom, this._offset)
   }
 
-  // ─── Pointer Events (framework adapters call these) ───
+  // ─── Pointer Events ─────────────────────────────
 
   onPointerDown(canvasPoint: Point, button: number = 0): void {
+    // Pan
     if (button === 1 || button === 2) {
       this._isPanning = true
       this._panStart = canvasPoint
@@ -222,8 +201,10 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
     if (this._activeTool === 'bbox') {
       this.handleBboxPointerDown(imagePoint)
+    } else if (this._activeTool === 'polygon') {
+      this.handlePolygonClick(imagePoint)
     } else if (this._activeTool === null) {
-      this.handleSelectPointerDown(imagePoint, canvasPoint)
+      this.handleSelectPointerDown(imagePoint)
     }
   }
 
@@ -239,12 +220,17 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
     const imagePoint = this.canvasToImage(canvasPoint)
 
-    if (this._mode === 'drawing') {
+    if (this._activeTool === 'bbox' && this._mode === 'drawing') {
       this.handleBboxDrawingMove(imagePoint)
+    } else if (this._activeTool === 'polygon' && this._mode === 'drawing') {
+      this._polygonMousePos = clampPointToImage(imagePoint, this._imageSize)
+      this.emit('drawing:update', this._polygonPoints)
     } else if (this._mode === 'dragging') {
       this.handleDraggingMove(imagePoint)
     } else if (this._mode === 'resizing') {
       this.handleResizingMove(imagePoint)
+    } else if (this._mode === 'dragging-vertex') {
+      this.handleVertexDraggingMove(imagePoint)
     } else {
       this.handleHoverMove(imagePoint)
     }
@@ -258,21 +244,29 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
       return
     }
 
-    if (this._mode === 'drawing') {
-      this.finishDrawing()
+    // BBox drawing finishes on pointer up
+    if (this._activeTool === 'bbox' && this._mode === 'drawing') {
+      this.finishBboxDrawing()
     } else if (this._mode === 'dragging') {
       this.finishDragging()
     } else if (this._mode === 'resizing') {
       this.finishResizing()
+    } else if (this._mode === 'dragging-vertex') {
+      this.finishVertexDragging()
+    }
+    // Polygon drawing does NOT finish on pointer up — it finishes on close/dblclick
+  }
+
+  onDoubleClick(canvasPoint: Point): void {
+    // Double click finishes polygon
+    if (this._activeTool === 'polygon' && this._mode === 'drawing') {
+      this.finishPolygonDrawing()
     }
   }
 
   onWheel(canvasPoint: Point, deltaY: number): void {
-    if (deltaY < 0) {
-      this.zoomIn(canvasPoint)
-    } else {
-      this.zoomOut(canvasPoint)
-    }
+    if (deltaY < 0) this.zoomIn(canvasPoint)
+    else this.zoomOut(canvasPoint)
   }
 
   onKeyDown(key: string): void {
@@ -289,8 +283,8 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
   private handleBboxPointerDown(imagePoint: Point): void {
     const clamped = clampPointToImage(imagePoint, this._imageSize)
-    this._drawStart = clamped
-    this._drawCurrent = clamped
+    this._bboxDrawStart = clamped
+    this._bboxDrawCurrent = clamped
     this._drawingPreview = { x: clamped.x, y: clamped.y, width: 0, height: 0 }
     this._mode = 'drawing'
     this.emit('mode:change', 'drawing')
@@ -298,42 +292,31 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
   }
 
   private handleBboxDrawingMove(imagePoint: Point): void {
-    if (!this._drawStart) return
+    if (!this._bboxDrawStart) return
     const clamped = clampPointToImage(imagePoint, this._imageSize)
-    this._drawCurrent = clamped
-    this._drawingPreview = normalizeBbox(this._drawStart, clamped)
-    this.emit('drawing:update', this._drawingPreview)
+    this._bboxDrawCurrent = clamped
+    this._drawingPreview = normalizeBbox(this._bboxDrawStart, clamped)
+    this.emit('drawing:update', [this._bboxDrawStart, clamped])
   }
 
-  private finishDrawing(): void {
-    if (!this._drawStart || !this._drawCurrent) {
-      this.cancelDrawing()
-      return
+  private finishBboxDrawing(): void {
+    if (!this._bboxDrawStart || !this._bboxDrawCurrent) {
+      this.cancelDrawing(); return
     }
-
-    const rect = normalizeBbox(this._drawStart, this._drawCurrent)
-
-    if (!isBboxValid(rect)) {
-      this.cancelDrawing()
-      return
-    }
-
-    // Color: user bergan bo'lsa shu, aks holda random
-    const drawColor = this._color ?? nextColor()
+    const rect = normalizeBbox(this._bboxDrawStart, this._bboxDrawCurrent)
+    if (!isBboxValid(rect)) { this.cancelDrawing(); return }
 
     const bbox: BoundingBox = {
-      id: generateId(),
-      ...rect,
-      rotation: 0,
-      color: drawColor,
+      id: generateId('bbox'), type: 'bbox', ...rect,
+      rotation: 0, color: this._color ?? nextColor(),
     }
 
     this._annotations.push(bbox)
-    this._drawStart = null
-    this._drawCurrent = null
+    this._bboxDrawStart = null
+    this._bboxDrawCurrent = null
     this._drawingPreview = null
-    this._mode = 'idle'
     this._selectedId = bbox.id
+    this._mode = 'idle'
 
     this.emit('drawing:end', bbox)
     this.emit('annotation:create', bbox)
@@ -342,10 +325,66 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('mode:change', 'idle')
   }
 
+  // ─── Polygon Drawing ───────────────────────────
+
+  private handlePolygonClick(imagePoint: Point): void {
+    const clamped = clampPointToImage(imagePoint, this._imageSize)
+
+    if (this._mode !== 'drawing') {
+      // First click — start polygon
+      this._polygonPoints = [clamped]
+      this._polygonMousePos = clamped
+      this._mode = 'drawing'
+      this.emit('mode:change', 'drawing')
+      this.emit('drawing:start', clamped)
+      return
+    }
+
+    // Subsequent clicks — add point or close
+    if (this._polygonPoints.length >= DEFAULTS.MIN_POLYGON_POINTS) {
+      if (isNearFirstPoint(clamped, this._polygonPoints[0], DEFAULTS.CLOSE_POLYGON_THRESHOLD, this._zoom)) {
+        this.finishPolygonDrawing()
+        return
+      }
+    }
+
+    this._polygonPoints.push(clamped)
+    this.emit('drawing:update', this._polygonPoints)
+  }
+
+  private finishPolygonDrawing(): void {
+    if (this._polygonPoints.length < DEFAULTS.MIN_POLYGON_POINTS) {
+      this.cancelDrawing(); return
+    }
+
+    const polygon: Polygon = {
+      id: generateId('poly'),
+      type: 'polygon',
+      points: [...this._polygonPoints],
+      color: this._color ?? nextColor(),
+    }
+
+    this._annotations.push(polygon)
+    this._polygonPoints = []
+    this._polygonMousePos = null
+    this._selectedId = polygon.id
+    this._mode = 'idle'
+
+    this.emit('drawing:end', polygon)
+    this.emit('annotation:create', polygon)
+    this.emit('annotation:select', polygon.id)
+    this.emit('annotations:change', this._annotations)
+    this.emit('mode:change', 'idle')
+  }
+
+  // ─── Cancel Drawing (both) ─────────────────────
+
   cancelDrawing(): void {
-    this._drawStart = null
-    this._drawCurrent = null
+    this._bboxDrawStart = null
+    this._bboxDrawCurrent = null
     this._drawingPreview = null
+    this._polygonPoints = []
+    this._polygonMousePos = null
     this._mode = 'idle'
     this.emit('drawing:cancel', undefined)
     this.emit('mode:change', 'idle')
@@ -353,48 +392,75 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
 
   // ─── Selection & Editing ────────────────────────
 
-  private handleSelectPointerDown(imagePoint: Point, _canvasPoint: Point): void {
-    if (this._selectedId) {
-      const selected = this.selectedAnnotation
-      if (selected) {
-        const handle = getHandleAtPoint(imagePoint, selected, this._zoom)
-        if (handle) {
-          this._activeHandle = handle
-          this._resizeStart = imagePoint
-          this._mode = 'resizing'
-          this.emit('mode:change', 'resizing')
-          return
-        }
+  private handleSelectPointerDown(imagePoint: Point): void {
+    const selected = this.selectedAnnotation
+
+    // 1. BBox handle resize
+    if (selected?.type === 'bbox') {
+      const handle = getHandleAtPoint(imagePoint, selected, this._zoom)
+      if (handle) {
+        this._activeHandle = handle
+        this._resizeStart = imagePoint
+        this._mode = 'resizing'
+        this.emit('mode:change', 'resizing')
+        return
       }
     }
 
+    // 2. Polygon vertex drag
+    if (selected?.type === 'polygon') {
+      const vertexIdx = getVertexAtPoint(imagePoint, selected.points, this._zoom)
+      if (vertexIdx !== null) {
+        this._draggingVertexIndex = vertexIdx
+        this._vertexDragStart = imagePoint
+        this._mode = 'dragging-vertex'
+        this.emit('mode:change', 'dragging-vertex')
+        return
+      }
+    }
+
+    // 3. Hit test — click on any annotation
     const hit = getTopAnnotationAtPoint(imagePoint, this._annotations)
     if (hit) {
       this.select(hit.id)
       this._dragStart = imagePoint
-      this._dragBboxOrigin = { x: hit.x, y: hit.y, width: hit.width, height: hit.height }
+
+      if (hit.type === 'bbox') {
+        this._dragBboxOrigin = { x: hit.x, y: hit.y, width: hit.width, height: hit.height }
+      } else if (hit.type === 'polygon') {
+        this._dragPolygonOrigin = hit.points.map(p => ({ ...p }))
+      }
+
       this._mode = 'dragging'
       this.emit('mode:change', 'dragging')
       return
     }
 
+    // 4. Empty area — deselect
     this.deselect()
   }
 
-  private handleDraggingMove(imagePoint: Point): void {
-    if (!this._selectedId || !this._dragStart || !this._dragBboxOrigin) return
+  // ─── Dragging (universal) ──────────────────────
 
+  private handleDraggingMove(imagePoint: Point): void {
+    if (!this._selectedId || !this._dragStart) return
     const dx = imagePoint.x - this._dragStart.x
     const dy = imagePoint.y - this._dragStart.y
+    const selected = this.selectedAnnotation
 
-    const newRect: Rect = {
-      x: this._dragBboxOrigin.x + dx,
-      y: this._dragBboxOrigin.y + dy,
-      width: this._dragBboxOrigin.width,
-      height: this._dragBboxOrigin.height,
+    if (selected?.type === 'bbox' && this._dragBboxOrigin) {
+      const newRect: Rect = {
+        x: this._dragBboxOrigin.x + dx,
+        y: this._dragBboxOrigin.y + dy,
+        width: this._dragBboxOrigin.width,
+        height: this._dragBboxOrigin.height,
+      }
+      const clamped = clampBboxToImage(newRect, this._imageSize)
+      this.updateAnnotationFields(this._selectedId, clamped)
+    } else if (selected?.type === 'polygon' && this._dragPolygonOrigin) {
+      const newPoints = translatePolygonPoints(this._dragPolygonOrigin, dx, dy)
+      this.updateAnnotationFields(this._selectedId, { points: newPoints })
     }
-    const clamped = clampBboxToImage(newRect, this._imageSize)
-    this.updateAnnotationRect(this._selectedId, clamped)
   }
 
   private finishDragging(): void {
@@ -404,24 +470,21 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     }
     this._dragStart = null
     this._dragBboxOrigin = null
+    this._dragPolygonOrigin = null
     this._mode = this._selectedId ? 'selecting' : 'idle'
     this.emit('mode:change', this._mode)
   }
 
+  // ─── BBox Resizing ─────────────────────────────
+
   private handleResizingMove(imagePoint: Point): void {
     if (!this._selectedId || !this._activeHandle || !this._resizeStart) return
-
     const selected = this.selectedAnnotation
-    if (!selected) return
-
-    const delta: Point = {
-      x: imagePoint.x - this._resizeStart.x,
-      y: imagePoint.y - this._resizeStart.y,
-    }
-
+    if (!selected || selected.type !== 'bbox') return
+    const delta: Point = { x: imagePoint.x - this._resizeStart.x, y: imagePoint.y - this._resizeStart.y }
     const newRect = resizeBboxByHandle(selected, this._activeHandle, delta, this._imageSize)
     this._resizeStart = imagePoint
-    this.updateAnnotationRect(this._selectedId, newRect)
+    this.updateAnnotationFields(this._selectedId, newRect)
   }
 
   private finishResizing(): void {
@@ -435,12 +498,36 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('mode:change', this._mode)
   }
 
+  // ─── Polygon Vertex Dragging ───────────────────
+
+  private handleVertexDraggingMove(imagePoint: Point): void {
+    if (this._draggingVertexIndex === null || !this._selectedId) return
+    const selected = this.selectedAnnotation
+    if (!selected || selected.type !== 'polygon') return
+
+    const clamped = clampPointToImage(imagePoint, this._imageSize)
+    const newPoints = [...selected.points]
+    newPoints[this._draggingVertexIndex] = clamped
+    this.updateAnnotationFields(this._selectedId, { points: newPoints })
+  }
+
+  private finishVertexDragging(): void {
+    if (this._selectedId) {
+      const ann = this.selectedAnnotation
+      if (ann) this.emit('annotation:update', ann)
+    }
+    this._draggingVertexIndex = null
+    this._vertexDragStart = null
+    this._mode = this._selectedId ? 'selecting' : 'idle'
+    this.emit('mode:change', this._mode)
+  }
+
+  // ─── Hover ─────────────────────────────────────
+
   private handleHoverMove(imagePoint: Point): void {
     const hit = getTopAnnotationAtPoint(imagePoint, this._annotations)
-    const newHoveredId = hit?.id ?? null
-    if (newHoveredId !== this._hoveredId) {
-      this._hoveredId = newHoveredId
-    }
+    const newId = hit?.id ?? null
+    if (newId !== this._hoveredId) this._hoveredId = newId
   }
 
   // ─── CRUD Operations ───────────────────────────
@@ -459,26 +546,26 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('mode:change', 'idle')
   }
 
-  addAnnotation(bbox: Omit<BoundingBox, 'id'>): BoundingBox {
-    const annotation: BoundingBox = { ...bbox, id: generateId() }
+  addAnnotation(ann: Omit<Annotation, 'id'>): Annotation {
+    const annotation = { ...ann, id: generateId(ann.type) } as Annotation
     this._annotations.push(annotation)
     this.emit('annotation:create', annotation)
     this.emit('annotations:change', this._annotations)
     return annotation
   }
 
-  updateAnnotation(id: string, updates: Partial<BoundingBox>): void {
+  updateAnnotation(id: string, updates: Partial<Annotation>): void {
     const idx = this._annotations.findIndex(a => a.id === id)
     if (idx === -1) return
-    this._annotations[idx] = { ...this._annotations[idx], ...updates }
+    this._annotations[idx] = { ...this._annotations[idx], ...updates } as Annotation
     this.emit('annotation:update', this._annotations[idx])
     this.emit('annotations:change', this._annotations)
   }
 
-  private updateAnnotationRect(id: string, rect: Rect): void {
+  private updateAnnotationFields(id: string, fields: Record<string, any>): void {
     const idx = this._annotations.findIndex(a => a.id === id)
     if (idx === -1) return
-    this._annotations[idx] = { ...this._annotations[idx], ...rect }
+    this._annotations[idx] = { ...this._annotations[idx], ...fields } as Annotation
   }
 
   deleteAnnotation(id: string): void {
@@ -501,77 +588,55 @@ export class AnnotationEngine extends EventEmitter<EngineEvents> {
     this.emit('annotation:select', null)
   }
 
-  // ─── Export / Import ─────────────────────────────
+  // ─── Export / Import ────────────────────────────
 
-  /** Export as absolute pixel coordinates (includes image dimensions) */
   exportJSON(format: 'pixel'): ExportDataPixel
-  /** Export as normalized 0-1 coordinates (portable, image-size independent) */
   exportJSON(format: 'normalized'): ExportDataNormalized
   exportJSON(format: 'pixel' | 'normalized' = 'pixel'): ExportData {
+    const { width: iw, height: ih } = this._imageSize
+
     if (format === 'normalized') {
-      const { width: iw, height: ih } = this._imageSize
-      if (!iw || !ih) {
-        return { format: 'normalized', annotations: [] }
-      }
-      const normalized: NormalizedBoundingBox[] = this._annotations.map(a => ({
-        id: a.id,
-        x: a.x / iw,
-        y: a.y / ih,
-        width: a.width / iw,
-        height: a.height / ih,
-        rotation: a.rotation,
-        label: a.label,
-        color: a.color,
-      }))
+      if (!iw || !ih) return { format: 'normalized', annotations: [] }
+
+      const normalized: NormalizedAnnotation[] = this._annotations.map(a => {
+        if (a.type === 'bbox') {
+          return {
+            id: a.id, type: 'bbox',
+            x: a.x / iw, y: a.y / ih, width: a.width / iw, height: a.height / ih,
+            rotation: a.rotation, label: a.label, color: a.color,
+          }
+        } else {
+          return {
+            id: a.id, type: 'polygon',
+            points: a.points.map(p => ({ x: p.x / iw, y: p.y / ih })),
+            label: a.label, color: a.color,
+          }
+        }
+      })
       return { format: 'normalized', annotations: normalized }
     }
 
     return {
       format: 'pixel',
-      imageWidth: this._imageSize.width,
-      imageHeight: this._imageSize.height,
-      annotations: this._annotations.map(a => ({ ...a })),
+      imageWidth: iw, imageHeight: ih,
+      annotations: this._annotations.map(a => ({ ...a, ...(a.type === 'polygon' ? { points: a.points.map(p => ({ ...p })) } : {}) })),
     }
   }
 
-  /** Import annotations from JSON. Auto-detects pixel vs normalized format. */
   importJSON(data: ExportData): void {
     if (data.format === 'normalized') {
       const { width: iw, height: ih } = this._imageSize
-      if (!iw || !ih) {
-        console.warn('Cannot import normalized annotations: no image loaded')
-        return
-      }
-      const annotations: BoundingBox[] = data.annotations.map(a => ({
-        id: a.id,
-        x: a.x * iw,
-        y: a.y * ih,
-        width: a.width * iw,
-        height: a.height * ih,
-        rotation: a.rotation,
-        label: a.label,
-        color: a.color,
-      }))
-      this._annotations = annotations
-    } else {
-      // Pixel format — if image sizes differ, scale annotations
-      const { imageWidth, imageHeight, annotations } = data
-      const { width: iw, height: ih } = this._imageSize
+      if (!iw || !ih) { console.warn('Cannot import normalized: no image loaded'); return }
 
-      if (iw && ih && imageWidth && imageHeight && (imageWidth !== iw || imageHeight !== ih)) {
-        // Scale from source image size to current image size
-        const sx = iw / imageWidth
-        const sy = ih / imageHeight
-        this._annotations = annotations.map(a => ({
-          ...a,
-          x: a.x * sx,
-          y: a.y * sy,
-          width: a.width * sx,
-          height: a.height * sy,
-        }))
-      } else {
-        this._annotations = annotations.map(a => ({ ...a }))
-      }
+      this._annotations = data.annotations.map(a => {
+        if (a.type === 'polygon' && a.points) {
+          return { id: a.id, type: 'polygon' as const, points: a.points.map(p => ({ x: p.x * iw, y: p.y * ih })), label: a.label, color: a.color }
+        } else {
+          return { id: a.id, type: 'bbox' as const, x: (a.x ?? 0) * iw, y: (a.y ?? 0) * ih, width: (a.width ?? 0) * iw, height: (a.height ?? 0) * ih, rotation: a.rotation ?? 0, label: a.label, color: a.color }
+        }
+      })
+    } else {
+      this._annotations = data.annotations.map(a => ({ ...a })) as Annotation[]
     }
 
     this._selectedId = null

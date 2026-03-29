@@ -4,17 +4,17 @@ import {
   AnnotationCanvas,
   useAnnotation,
 } from '@labelflow-core/react'
-import type { BoundingBox } from '@labelflow-core/react'
+import type { Annotation } from '@labelflow-core/react'
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F', '#BB8FCE']
 
 const SAMPLE_IMAGE = 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&q=80'
 
 // Serverdan kelgan tayyor annotationlar misoli
-const DEMO_ANNOTATIONS: BoundingBox[] = [
-  { id: 'demo_1', x: 180, y: 120, width: 200, height: 150, rotation: 0, color: '#FF6B6B', label: 'Building' },
-  { id: 'demo_2', x: 500, y: 300, width: 120, height: 180, rotation: 0, color: '#4ECDC4', label: 'Tower' },
-  { id: 'demo_3', x: 750, y: 200, width: 160, height: 100, rotation: 0, color: '#45B7D1', label: 'Bridge' },
+const DEMO_ANNOTATIONS: Annotation[] = [
+  { id: 'demo_1', type: 'bbox', x: 180, y: 120, width: 200, height: 150, rotation: 0, color: '#FF6B6B', label: 'Building' },
+  { id: 'demo_2', type: 'polygon', points: [{ x: 500, y: 300 }, { x: 620, y: 280 }, { x: 650, y: 420 }, { x: 520, y: 450 }], color: '#4ECDC4', label: 'Area' },
+  { id: 'demo_3', type: 'bbox', x: 750, y: 200, width: 160, height: 100, rotation: 0, color: '#45B7D1', label: 'Bridge' },
 ]
 
 function Toolbar({ onExport, onImport }: {
@@ -38,6 +38,12 @@ function Toolbar({ onExport, onImport }: {
           onClick={() => setActiveTool('bbox')}
         >
           ▢ BBox
+        </button>
+        <button
+          style={{ ...styles.btn, ...(engine.activeTool === 'polygon' ? styles.btnActive : {}) }}
+          onClick={() => setActiveTool('polygon')}
+        >
+          △ Polygon
         </button>
       </div>
 
@@ -121,7 +127,9 @@ function Sidebar({ exportedJSON }: { exportedJSON: string | null }) {
             </span>
           </div>
           <span style={styles.annCoords}>
-            {Math.round(ann.x)}, {Math.round(ann.y)} — {Math.round(ann.width)}×{Math.round(ann.height)}
+            {ann.type === 'bbox'
+              ? `${Math.round(ann.x)}, ${Math.round(ann.y)} — ${Math.round(ann.width)}×${Math.round(ann.height)}`
+              : `${ann.points.length} points`}
           </span>
         </div>
       ))}
@@ -182,7 +190,7 @@ function CanvasSizeControls({
 }
 
 export default function App() {
-  const [annotations, setAnnotations] = useState<BoundingBox[]>([])
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [color, setColor] = useState<string | null>(null)
   const [canvasWidth, setCanvasWidth] = useState(900)
   const [canvasHeight, setCanvasHeight] = useState(600)

@@ -1,8 +1,8 @@
 # LabelFlow
 
-A framework-agnostic image annotation library for **React**, **Vue**, and **vanilla JavaScript**. Draw bounding boxes on images with zoom, pan, resize, drag, and full import/export support.
+A framework-agnostic image annotation library for **React**, **Vue**, and **vanilla JavaScript**. Draw bounding boxes and polygons on images with zoom, pan, resize, drag, and full import/export support.
 
-**Zero dependencies** in the core engine. Native Canvas 2D rendering. ~23KB core, ~8KB per framework adapter.
+**Zero dependencies** in the core engine. Native Canvas 2D rendering. ~25KB core, ~8KB per framework adapter.
 
 ## Packages
 
@@ -15,6 +15,7 @@ A framework-agnostic image annotation library for **React**, **Vue**, and **vani
 ## Features
 
 - **BBox annotation** — draw, select, drag, resize with 8-point handles
+- **Polygon annotation** — click to place vertices, auto-close, drag vertices to edit
 - **Zoom & Pan** — mouse wheel zoom (focal point), right-click/middle-click pan
 - **Configurable canvas size** — set width/height, image auto-fits
 - **Color control** — set a fixed color or auto-assign random colors
@@ -559,7 +560,7 @@ pnpm build:vue
 
 ## Roadmap
 
-- [ ] Polygon annotation tool
+- [x] Polygon annotation tool
 - [ ] Polyline annotation tool
 - [ ] Point annotation tool
 - [ ] Skeleton (keypoint) annotation tool

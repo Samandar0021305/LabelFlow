@@ -3,63 +3,69 @@
 All types are exported from every package:
 
 ```ts
-import type { BoundingBox, ToolType, InteractionMode, Point, Size, Rect } from '@labelflow-core/react'
-// or
-import type { BoundingBox, ToolType, InteractionMode, Point, Size, Rect } from '@labelflow-core/vue'
-// or
-import type { BoundingBox, ToolType, InteractionMode, Point, Size, Rect } from '@labelflow-core/engine'
+import type { Annotation, BoundingBox, Polygon, ToolType, Point } from '@labelflow-core/react'
+// or from '@labelflow-core/vue' or '@labelflow-core/engine'
+```
+
+## Annotation
+
+Union type of all annotation shapes:
+
+```ts
+type Annotation = BoundingBox | Polygon
+```
+
+Use `annotation.type` to discriminate:
+
+```ts
+if (annotation.type === 'bbox') {
+  console.log(annotation.width, annotation.height)
+} else if (annotation.type === 'polygon') {
+  console.log(annotation.points.length, 'vertices')
+}
 ```
 
 ## BoundingBox
 
-The core annotation type.
-
 ```ts
 interface BoundingBox {
-  id: string        // Auto-generated unique ID (e.g. "bbox_1_m5abc")
-  x: number         // Left edge in original image pixels
-  y: number         // Top edge in original image pixels
-  width: number     // Width in original image pixels
-  height: number    // Height in original image pixels
-  rotation: number  // Rotation in degrees (currently always 0)
-  label?: string    // Optional text label (rendered above the box)
-  color: string     // Hex color string (e.g. "#FF6B6B")
+  id: string        // Auto-generated unique ID
+  type: 'bbox'      // Discriminator
+  x: number         // Left edge in image pixels
+  y: number         // Top edge in image pixels
+  width: number     // Width in image pixels
+  height: number    // Height in image pixels
+  rotation: number  // Degrees (currently always 0)
+  label?: string    // Optional label text (shown above the box)
+  color: string     // Hex color, e.g. '#FF6B6B'
+}
+```
+
+## Polygon
+
+```ts
+interface Polygon {
+  id: string        // Auto-generated unique ID
+  type: 'polygon'   // Discriminator
+  points: Point[]   // Array of vertices in image pixels
+  label?: string    // Optional label text (shown at top-left)
+  color: string     // Hex color, e.g. '#4ECDC4'
 }
 ```
 
 ### Coordinate System
 
-Coordinates are in **original image pixels**, not canvas pixels:
+All coordinates are in **original image pixels**:
 
 ```
 Image: 1920×1080
 Canvas: 800×600
 
-BBox { x: 960, y: 540 }  →  center of the image
-                              (regardless of canvas size)
+BBox { x: 960, y: 540 }                    → center of image
+Polygon { points: [{ x: 960, y: 540 }] }   → center of image
 ```
 
-## ToolType
-
-```ts
-type ToolType = 'bbox' | 'polygon' | 'polyline' | 'point' | 'skeleton'
-```
-
-Currently only `'bbox'` is implemented. Others are reserved for future use.
-
-## InteractionMode
-
-```ts
-type InteractionMode = 'idle' | 'drawing' | 'selecting' | 'editing' | 'dragging' | 'resizing'
-```
-
-| Mode | Description |
-|------|-------------|
-| `idle` | Nothing happening |
-| `drawing` | User is drawing a new bbox (mouse down + drag) |
-| `selecting` | A box is selected but not being manipulated |
-| `dragging` | User is moving a selected box |
-| `resizing` | User is resizing via a handle |
+Coordinates don't change when the canvas is resized or zoomed.
 
 ## Point
 
@@ -68,6 +74,26 @@ interface Point {
   x: number
   y: number
 }
+```
+
+## ToolType
+
+```ts
+type ToolType = 'bbox' | 'polygon' | 'polyline' | 'point' | 'skeleton'
+```
+
+Currently `'bbox'` and `'polygon'` are implemented. Others are reserved for future use.
+
+## InteractionMode
+
+```ts
+type InteractionMode =
+  | 'idle'             // Nothing happening
+  | 'drawing'          // Drawing a new annotation (bbox drag or polygon clicks)
+  | 'selecting'        // Annotation selected, not moving
+  | 'dragging'         // Moving an annotation
+  | 'resizing'         // Resizing bbox via handle
+  | 'dragging-vertex'  // Dragging a polygon vertex
 ```
 
 ## Size
@@ -94,10 +120,10 @@ interface Rect {
 
 ```ts
 interface ViewportState {
-  zoom: number          // Current zoom level (e.g. 0.5 = 50%)
-  offset: Point         // Pan offset in canvas pixels
-  imageSize: Size       // Original image dimensions
-  canvasSize: Size      // Canvas display dimensions
+  zoom: number
+  offset: Point
+  imageSize: Size
+  canvasSize: Size
 }
 ```
 
@@ -117,24 +143,22 @@ interface ExportDataPixel {
   format: 'pixel'
   imageWidth: number
   imageHeight: number
-  annotations: BoundingBox[]
-}
-
-interface NormalizedBoundingBox {
-  id: string
-  x: number       // 0-1
-  y: number       // 0-1
-  width: number   // 0-1
-  height: number  // 0-1
-  rotation: number
-  label?: string
-  color: string
+  annotations: Annotation[]
 }
 
 interface ExportDataNormalized {
   format: 'normalized'
-  annotations: NormalizedBoundingBox[]
+  annotations: NormalizedAnnotation[]
 }
 
-type ExportData = ExportDataPixel | ExportDataNormalized
+interface NormalizedAnnotation {
+  id: string
+  type: 'bbox' | 'polygon'
+  // bbox (0-1)
+  x?: number; y?: number; width?: number; height?: number; rotation?: number
+  // polygon (0-1)
+  points?: Point[]
+  label?: string
+  color: string
+}
 ```

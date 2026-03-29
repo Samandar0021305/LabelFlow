@@ -4,7 +4,7 @@ layout: home
 hero:
   name: LabelFlow
   text: Image Annotation Library
-  tagline: Draw, select, drag, and resize bounding boxes on any image. Works with React, Vue, and vanilla JavaScript.
+  tagline: Draw bounding boxes and polygons on any image. Select, drag, resize, zoom, and pan. Works with React, Vue, and vanilla JavaScript.
   actions:
     - theme: brand
       text: Get Started
@@ -21,8 +21,8 @@ hero:
 
 features:
   - icon: 🖼️
-    title: BBox Annotation
-    details: Draw bounding boxes with click and drag. Select, move, and resize with 8-point handles. Keyboard shortcuts for fast workflows.
+    title: BBox & Polygon Annotation
+    details: Draw bounding boxes with click and drag, or place polygon vertices with click-to-add. Select, move, resize handles, drag vertices. Keyboard shortcuts for fast workflows.
 
   - icon: 🔍
     title: Zoom & Pan
@@ -76,7 +76,8 @@ function Toolbar() {
   return (
     <div>
       <button onClick={() => setActiveTool(null)}>Select</button>
-      <button onClick={() => setActiveTool('bbox')}>Draw BBox</button>
+      <button onClick={() => setActiveTool('bbox')}>BBox</button>
+      <button onClick={() => setActiveTool('polygon')}>Polygon</button>
     </div>
   )
 }
@@ -104,7 +105,8 @@ const { setActiveTool } = useAnnotation()
 <template>
   <AnnotationProvider :annotations="annotations" @change="annotations = $event">
     <button @click="setActiveTool(null)">Select</button>
-    <button @click="setActiveTool('bbox')">Draw BBox</button>
+    <button @click="setActiveTool('bbox')">BBox</button>
+    <button @click="setActiveTool('polygon')">Polygon</button>
     <AnnotationCanvas src="/photo.jpg" :width="800" :height="600" />
   </AnnotationProvider>
 </template>

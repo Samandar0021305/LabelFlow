@@ -1,21 +1,21 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { AnnotationEngine } from '@labelflow-core/engine'
-import type { BoundingBox, ToolType, InteractionMode } from '@labelflow-core/engine'
+import type { Annotation, ToolType, InteractionMode } from '@labelflow-core/engine'
 
 export interface UseAnnotationEngineOptions {
-  annotations?: Ref<BoundingBox[]>
+  annotations?: Ref<Annotation[]>
   color?: Ref<string | null>
-  onChange?: (annotations: BoundingBox[]) => void
+  onChange?: (annotations: Annotation[]) => void
   onSelect?: (id: string | null) => void
-  onCreate?: (bbox: BoundingBox) => void
-  onUpdate?: (bbox: BoundingBox) => void
+  onCreate?: (bbox: Annotation) => void
+  onUpdate?: (bbox: Annotation) => void
   onDelete?: (id: string) => void
 }
 
 export function useAnnotationEngine(options?: UseAnnotationEngineOptions) {
   const engine = new AnnotationEngine()
 
-  const annotations = ref<BoundingBox[]>([])
+  const annotations = ref<Annotation[]>([])
   const selectedId = ref<string | null>(null)
   const activeTool = ref<ToolType | null>(null)
   const mode = ref<InteractionMode>('idle')

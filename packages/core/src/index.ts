@@ -1,11 +1,11 @@
 // Types
 export type {
   Point, Size, Rect,
-  BoundingBox,
+  BoundingBox, Polygon, Annotation,
   ToolType, InteractionMode, HandlePosition,
   EngineEvents, ViewportState, RenderState,
   ToolConfig, Handle,
-  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedBoundingBox,
+  ExportData, ExportDataPixel, ExportDataNormalized, NormalizedAnnotation,
 } from './types'
 export { DEFAULTS } from './types'
 
@@ -22,6 +22,10 @@ export {
   clampBboxToImage, clampPointToImage,
   isBboxValid,
   getBboxHandles, getHandleAtPoint, resizeBboxByHandle,
+  // Polygon
+  isPointInsidePolygon, getPolygonArea, getPolygonBounds, getPolygonCenter,
+  isNearFirstPoint, getVertexAtPoint, translatePolygonPoints, clampPolygonToImage,
+  // Universal
   getTopAnnotationAtPoint,
 } from './geometry'
 

@@ -108,6 +108,11 @@ export const AnnotationCanvas = defineComponent({
       requestRender()
     }
 
+    function onDblClick(e: MouseEvent) {
+      engine.onDoubleClick(getCanvasPoint(e))
+      requestRender()
+    }
+
     function onWheel(e: WheelEvent) {
       e.preventDefault()
       engine.onWheel(getCanvasPoint(e), e.deltaY)
@@ -144,6 +149,7 @@ export const AnnotationCanvas = defineComponent({
         onPointerdown: onPointerDown,
         onPointermove: onPointerMove,
         onPointerup: onPointerUp,
+        onDblclick: onDblClick,
         onWheel: onWheel,
         onContextmenu: (e: Event) => e.preventDefault(),
       }),

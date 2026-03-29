@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0
+
+- **Polygon annotation tool** — click to place vertices, auto-close near first point, double-click to close
+- Polygon vertex editing — drag individual vertices in select mode
+- Polygon drag — move entire polygon in select mode
+- Ray casting hit detection for polygon clicks
+- `Annotation` union type (`BoundingBox | Polygon`) replaces standalone `BoundingBox`
+- All annotations now have a `type` field: `'bbox'` or `'polygon'`
+- `onDoubleClick` event support in AnnotationCanvas
+- Updated README and docs for all packages
+
 ## v0.1.4
 
 - Fix GitHub repository URL in package metadata

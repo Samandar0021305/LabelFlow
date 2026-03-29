@@ -1,17 +1,17 @@
 import React from 'react'
-import type { BoundingBox } from '@labelflow-core/engine'
+import type { Annotation } from '@labelflow-core/engine'
 import { useAnnotationEngine } from '../hooks/useAnnotationEngine'
 import { AnnotationCtx } from './AnnotationContext'
 
 export interface AnnotationProviderProps {
   children: React.ReactNode
-  annotations?: BoundingBox[]
+  annotations?: Annotation[]
   /** Active drawing color. null = random color per annotation */
   color?: string | null
-  onChange?: (annotations: BoundingBox[]) => void
+  onChange?: (annotations: Annotation[]) => void
   onSelect?: (id: string | null) => void
-  onCreate?: (bbox: BoundingBox) => void
-  onUpdate?: (bbox: BoundingBox) => void
+  onCreate?: (bbox: Annotation) => void
+  onUpdate?: (bbox: Annotation) => void
   onDelete?: (id: string) => void
 }
 

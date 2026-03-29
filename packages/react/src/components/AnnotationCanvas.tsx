@@ -125,6 +125,11 @@ export function AnnotationCanvas({
     requestRender()
   }
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    engine.onDoubleClick(getCanvasPoint(e))
+    requestRender()
+  }
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     engine.onKeyDown(e.key)
     requestRender()
@@ -179,6 +184,7 @@ export function AnnotationCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       />
     </div>

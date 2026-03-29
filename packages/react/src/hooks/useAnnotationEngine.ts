@@ -1,14 +1,14 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
 import { AnnotationEngine } from '@labelflow-core/engine'
-import type { BoundingBox, ToolType } from '@labelflow-core/engine'
+import type { Annotation, ToolType } from '@labelflow-core/engine'
 
 export function useAnnotationEngine(options?: {
-  annotations?: BoundingBox[]
+  annotations?: Annotation[]
   color?: string | null
-  onChange?: (annotations: BoundingBox[]) => void
+  onChange?: (annotations: Annotation[]) => void
   onSelect?: (id: string | null) => void
-  onCreate?: (bbox: BoundingBox) => void
-  onUpdate?: (bbox: BoundingBox) => void
+  onCreate?: (bbox: Annotation) => void
+  onUpdate?: (bbox: Annotation) => void
   onDelete?: (id: string) => void
 }) {
   const engineRef = useRef<AnnotationEngine | null>(null)

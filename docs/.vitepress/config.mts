@@ -17,7 +17,7 @@ export default defineConfig({
       { text: 'API', link: '/api/annotation-provider' },
       { text: 'Examples', link: '/examples/' },
       {
-        text: 'v0.1.4',
+        text: 'v0.2.0',
         items: [
           { text: 'Changelog', link: '/changelog' },
           { text: 'npm', link: 'https://www.npmjs.com/package/@labelflow-core/react' },

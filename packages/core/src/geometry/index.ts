@@ -1,4 +1,4 @@
-import type { Point, Rect, Size, Handle, HandlePosition, BoundingBox } from '../types'
+import type { Point, Rect, Size, Handle, HandlePosition, BoundingBox, Polygon, Annotation } from '../types'
 import { DEFAULTS } from '../types'
 
 // ─── Coordinate Transforms ──────────────────────────────
@@ -163,15 +163,115 @@ export function resizeBboxByHandle(
   return { x, y, width, height }
 }
 
-// ─── Hit Detection ──────────────────────────────────────
+// ─── Polygon Geometry ───────────────────────────────────
+
+/** Ray casting algorithm — point polygon ichidami? */
+export function isPointInsidePolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y
+    const xj = polygon[j].x, yj = polygon[j].y
+    if (((yi > point.y) !== (yj > point.y)) &&
+        (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+/** Polygon area (Shoelace formula) */
+export function getPolygonArea(points: Point[]): number {
+  let area = 0
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    area += points[j].x * points[i].y - points[i].x * points[j].y
+  }
+  return Math.abs(area / 2)
+}
+
+/** Polygon bounding box */
+export function getPolygonBounds(points: Point[]): Rect {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of points) {
+    if (p.x < minX) minX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.x > maxX) maxX = p.x
+    if (p.y > maxY) maxY = p.y
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+/** Polygon center (centroid) */
+export function getPolygonCenter(points: Point[]): Point {
+  let cx = 0, cy = 0
+  for (const p of points) { cx += p.x; cy += p.y }
+  return { x: cx / points.length, y: cy / points.length }
+}
+
+/** Yangi nuqta birinchi nuqtaga yaqinmi? (polygon yopish uchun) */
+export function isNearFirstPoint(
+  point: Point,
+  firstPoint: Point,
+  threshold: number = DEFAULTS.CLOSE_POLYGON_THRESHOLD,
+  zoom: number = 1
+): boolean {
+  const scaledThreshold = threshold / zoom
+  const dx = point.x - firstPoint.x
+  const dy = point.y - firstPoint.y
+  return Math.sqrt(dx * dx + dy * dy) < scaledThreshold
+}
+
+/** Polygon ning vertex'iga eng yaqin nuqtani top */
+export function getVertexAtPoint(
+  point: Point,
+  vertices: Point[],
+  zoom: number,
+  vertexSize: number = DEFAULTS.VERTEX_SIZE
+): number | null {
+  const hitRadius = vertexSize / zoom / 2
+  for (let i = 0; i < vertices.length; i++) {
+    const dx = point.x - vertices[i].x
+    const dy = point.y - vertices[i].y
+    if (Math.sqrt(dx * dx + dy * dy) < hitRadius) {
+      return i
+    }
+  }
+  return null
+}
+
+/** Polygon barcha nuqtalarini delta bilan siljitish */
+export function translatePolygonPoints(points: Point[], dx: number, dy: number): Point[] {
+  return points.map(p => ({ x: p.x + dx, y: p.y + dy }))
+}
+
+/** Polygon nuqtalarini image bounds ichida clamp qilish */
+export function clampPolygonToImage(points: Point[], imageSize: Size): Point[] {
+  return points.map(p => ({
+    x: Math.max(0, Math.min(p.x, imageSize.width)),
+    y: Math.max(0, Math.min(p.y, imageSize.height)),
+  }))
+}
+
+// ─── Universal Hit Detection ────────────────────────────
 
 export function getTopAnnotationAtPoint(
   point: Point,
-  annotations: BoundingBox[]
-): BoundingBox | null {
-  // Eng kichik area'li annotationni qaytaramiz (eng aniq target)
-  const hits = annotations
-    .filter(a => isPointInsideBbox(point, a))
-    .sort((a, b) => getBboxArea(a) - getBboxArea(b))
-  return hits[0] ?? null
+  annotations: Annotation[]
+): Annotation | null {
+  // Har bir annotation uchun hit test, eng kichik area birinchi
+  const hits: { ann: Annotation; area: number }[] = []
+
+  for (const ann of annotations) {
+    if (ann.type === 'bbox') {
+      if (isPointInsideBbox(point, ann)) {
+        hits.push({ ann, area: getBboxArea(ann) })
+      }
+    } else if (ann.type === 'polygon') {
+      if (isPointInsidePolygon(point, ann.points)) {
+        hits.push({ ann, area: getPolygonArea(ann.points) })
+      }
+    }
+  }
+
+  hits.sort((a, b) => a.area - b.area)
+  return hits[0]?.ann ?? null
 }

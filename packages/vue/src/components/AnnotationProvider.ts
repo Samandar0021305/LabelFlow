@@ -1,5 +1,5 @@
 import { defineComponent, type PropType, toRef } from 'vue'
-import type { BoundingBox } from '@labelflow-core/engine'
+import type { Annotation } from '@labelflow-core/engine'
 import { useAnnotationEngine } from '../composables/useAnnotationEngine'
 import { provideAnnotation } from '../composables/useAnnotationContext'
 
@@ -7,7 +7,7 @@ export const AnnotationProvider = defineComponent({
   name: 'AnnotationProvider',
   props: {
     annotations: {
-      type: Array as PropType<BoundingBox[]>,
+      type: Array as PropType<Annotation[]>,
       default: () => [],
     },
     color: {
