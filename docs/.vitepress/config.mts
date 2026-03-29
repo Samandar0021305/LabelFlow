@@ -13,8 +13,7 @@ export default defineConfig({
     logo: '/logo.svg',
 
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'API', link: '/api/annotation-provider' },
+      { text: 'Docs', link: '/docs/getting-started' },
       { text: 'Examples', link: '/examples/' },
       {
         text: 'v0.2.0',
@@ -26,58 +25,32 @@ export default defineConfig({
     ],
 
     sidebar: {
-      '/guide/': [
+      '/docs/': [
         {
           text: 'Introduction',
           items: [
-            { text: 'Getting Started', link: '/guide/getting-started' },
-            { text: 'Installation', link: '/guide/installation' },
+            { text: 'Getting Started', link: '/docs/getting-started' },
+            { text: 'Installation', link: '/docs/installation' },
           ],
         },
         {
-          text: 'Essentials',
+          text: 'Features',
           items: [
-            { text: 'Drawing BBox', link: '/guide/drawing-bbox' },
-            { text: 'Import & Export', link: '/guide/import-export' },
-            { text: 'Color Control', link: '/guide/color-control' },
-            { text: 'Canvas Sizing', link: '/guide/canvas-sizing' },
-            { text: 'Zoom & Pan', link: '/guide/zoom-pan' },
+            { text: 'Drawing (BBox & Polygon)', link: '/docs/drawing' },
+            { text: 'Import & Export', link: '/docs/import-export' },
+            { text: 'Color Control', link: '/docs/color-control' },
+            { text: 'Canvas Sizing', link: '/docs/canvas-sizing' },
+            { text: 'Zoom & Pan', link: '/docs/zoom-pan' },
           ],
         },
         {
-          text: 'Framework Guides',
+          text: 'API',
           items: [
-            { text: 'React', link: '/guide/react' },
-            { text: 'Vue 3', link: '/guide/vue' },
-            { text: 'Vanilla JS', link: '/guide/vanilla-js' },
-          ],
-        },
-      ],
-      '/api/': [
-        {
-          text: 'Components',
-          items: [
-            { text: 'AnnotationProvider', link: '/api/annotation-provider' },
-            { text: 'AnnotationCanvas', link: '/api/annotation-canvas' },
-          ],
-        },
-        {
-          text: 'Hooks / Composables',
-          items: [
-            { text: 'useAnnotation()', link: '/api/use-annotation' },
-          ],
-        },
-        {
-          text: 'Core Engine',
-          items: [
-            { text: 'AnnotationEngine', link: '/api/annotation-engine' },
-            { text: 'Canvas2DRenderer', link: '/api/canvas-renderer' },
-          ],
-        },
-        {
-          text: 'Types',
-          items: [
-            { text: 'BoundingBox', link: '/api/types' },
+            { text: 'AnnotationProvider', link: '/docs/annotation-provider' },
+            { text: 'AnnotationCanvas', link: '/docs/annotation-canvas' },
+            { text: 'useAnnotation()', link: '/docs/use-annotation' },
+            { text: 'AnnotationEngine', link: '/docs/annotation-engine' },
+            { text: 'Types', link: '/docs/types' },
           ],
         },
       ],
@@ -86,8 +59,8 @@ export default defineConfig({
           text: 'Examples',
           items: [
             { text: 'Overview', link: '/examples/' },
-            { text: 'React Full App', link: '/examples/react-full' },
-            { text: 'Vue Full App', link: '/examples/vue-full' },
+            { text: 'React', link: '/examples/react' },
+            { text: 'Vue', link: '/examples/vue' },
             { text: 'Vanilla JS', link: '/examples/vanilla-js' },
           ],
         },

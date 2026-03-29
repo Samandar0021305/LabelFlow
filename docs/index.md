@@ -8,10 +8,10 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /guide/getting-started
+      link: /docs/getting-started
     - theme: alt
       text: API Reference
-      link: /api/annotation-provider
+      link: /docs/annotation-provider
     - theme: alt
       text: GitHub
       link: https://github.com/Samandar0021305/LabelFlow

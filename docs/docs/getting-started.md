@@ -1,25 +1,19 @@
 # Getting Started
 
-LabelFlow lets you add image annotation to your app in under 5 minutes. Users can draw bounding boxes, select them, drag, resize, zoom, and pan.
+LabelFlow lets you add image annotation to your app in under 5 minutes. Users can draw bounding boxes and polygons, select them, drag, resize, zoom, and pan.
 
 ## How it works
 
 ```
-Your App
-  │
-  ├── <AnnotationProvider>     ← Manages state, provides context
-  │     │
-  │     ├── Your Toolbar       ← useAnnotation() to control tools, color, zoom
-  │     │
-  │     └── <AnnotationCanvas> ← Renders image + annotations on canvas
-  │
-  └── onChange callback        ← You get the annotation array, save it anywhere
+<AnnotationProvider>           ← Manages state, provides context
+  ├── Your Toolbar             ← useAnnotation() to control tools
+  └── <AnnotationCanvas>       ← Renders image + annotations
 ```
 
 1. Wrap your UI in `<AnnotationProvider>` with an annotations array
 2. Place `<AnnotationCanvas>` with an image URL
-3. Use `useAnnotation()` in any child component to control the tools
-4. Listen to `onChange` to get the updated annotations
+3. Use `useAnnotation()` in any child component to control tools, color, zoom
+4. Listen to `onChange` to get updated annotations
 
 ## Quick Start (React)
 
@@ -30,7 +24,7 @@ npm install @labelflow-core/react
 ```tsx
 import { useState } from 'react'
 import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/react'
-import type { BoundingBox } from '@labelflow-core/react'
+import type { Annotation } from '@labelflow-core/react'
 
 function Toolbar() {
   const { engine, setActiveTool, deleteSelected } = useAnnotation()
@@ -43,16 +37,20 @@ function Toolbar() {
       </button>
       <button onClick={() => setActiveTool('bbox')}
         style={{ fontWeight: engine.activeTool === 'bbox' ? 'bold' : 'normal' }}>
-        Draw BBox
+        BBox
+      </button>
+      <button onClick={() => setActiveTool('polygon')}
+        style={{ fontWeight: engine.activeTool === 'polygon' ? 'bold' : 'normal' }}>
+        Polygon
       </button>
       <button onClick={deleteSelected}>Delete</button>
-      <span>{engine.annotations.length} boxes</span>
+      <span>{engine.annotations.length} annotations</span>
     </div>
   )
 }
 
 export default function App() {
-  const [annotations, setAnnotations] = useState<BoundingBox[]>([])
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
 
   return (
     <AnnotationProvider annotations={annotations} onChange={setAnnotations}>
@@ -73,9 +71,9 @@ npm install @labelflow-core/vue
 <script setup lang="ts">
 import { ref } from 'vue'
 import { AnnotationProvider, AnnotationCanvas, useAnnotation } from '@labelflow-core/vue'
-import type { BoundingBox } from '@labelflow-core/vue'
+import type { Annotation } from '@labelflow-core/vue'
 
-const annotations = ref<BoundingBox[]>([])
+const annotations = ref<Annotation[]>([])
 </script>
 
 <template>
@@ -88,7 +86,7 @@ const annotations = ref<BoundingBox[]>([])
 
 ## What's next?
 
-- [Installation](/guide/installation) — framework-specific install details
-- [Drawing BBox](/guide/drawing-bbox) — how annotation works
-- [Import & Export](/guide/import-export) — load/save annotations
-- [API Reference](/api/annotation-provider) — every prop, method, and event
+- [Installation](/docs/installation) — framework-specific details
+- [Drawing](/docs/drawing) — how BBox and Polygon tools work
+- [Import & Export](/docs/import-export) — load/save annotations
+- [useAnnotation()](/docs/use-annotation) — full hook API
